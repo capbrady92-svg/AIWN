@@ -1,5 +1,7 @@
 # AIWN — Adaptive Indexed Weight Networks
 
+**[→ View Interactive Explainer](https://capbrady92-svg.github.io/AIWN)** — sliders, visualisations, full walkthrough
+
 Experiment framework for benchmarking `IndexedLinear` against `StandardLinear`
 across speed, accuracy, and scaling behaviour.
 
