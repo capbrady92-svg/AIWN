@@ -5,26 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AIWN — How It Works</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&family=Fraunces:ital,wght@0,700;0,900;1,700&display=swap');
 
 :root {
-  --bg: #0d0d0f;
-  --surface: #13131a;
-  --border: #1e1e2a;
-  --border2: #2a2a3a;
-  --text: #e8e6e0;
-  --muted: #5a5870;
-  --dim: #2e2c3a;
-  --red: #e85c4a;
-  --red-dim: #3a1a15;
-  --red-mid: #7a2a20;
+  --bg: #0e0f14;
+  --surface: #161720;
+  --surface2: #1c1d2a;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #f0ede6;
+  --text2: #9896a8;
+  --text3: #5c5a6e;
+  --red: #ff6b5b;
+  --red-bg: rgba(255,107,91,0.1);
+  --red-border: rgba(255,107,91,0.25);
   --grn: #3dd68c;
-  --grn-dim: #0d2a1a;
-  --grn-mid: #1a6b45;
-  --gold: #f0b840;
-  --gold-dim: #2a2010;
-  --blue: #5b8dee;
-  --blue-dim: #0d1a3a;
+  --grn-bg: rgba(61,214,140,0.1);
+  --grn-border: rgba(61,214,140,0.25);
+  --gold: #f5c842;
+  --gold-bg: rgba(245,200,66,0.1);
+  --gold-border: rgba(245,200,66,0.25);
+  --blue: #6ba3f5;
+  --blue-bg: rgba(107,163,245,0.1);
+  --blue-border: rgba(107,163,245,0.25);
+  --radius: 10px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,212 +36,387 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'IBM Plex Mono', monospace;
-  padding: 0 0 80px;
-  line-height: 1;
+  font-family: 'DM Sans', sans-serif;
+  padding: 0 0 100px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ─── HERO ─── */
 .hero {
-  padding: 64px 40px 52px;
+  padding: 72px 48px 60px;
   border-bottom: 1px solid var(--border);
-  max-width: 1100px; margin: 0 auto;
+  max-width: 1120px;
+  margin: 0 auto;
 }
-.hero-tag {
-  font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
-  color: var(--grn); margin-bottom: 20px;
-  display: flex; align-items: center; gap: 10px;
-}
-.hero-tag::before { content:''; width:24px; height:1px; background:var(--grn); }
-.hero h1 {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(28px,4.5vw,52px);
-  font-weight: 800; letter-spacing: -1.5px;
-  line-height: 1.05; margin-bottom: 16px;
-}
-.hero h1 em { font-style:normal; color:var(--gold); }
-.hero-sub { font-size:13px; color:var(--muted); max-width:600px; line-height:1.8; }
 
-/* 7 claims summary */
+.hero-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--grn);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hero-tag::before {
+  content: '';
+  width: 28px;
+  height: 1px;
+  background: var(--grn);
+  flex-shrink: 0;
+}
+
+.hero h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(30px, 4vw, 52px);
+  font-weight: 900;
+  letter-spacing: -1px;
+  line-height: 1.08;
+  margin-bottom: 20px;
+  max-width: 700px;
+}
+
+.hero h1 em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.hero-sub {
+  font-size: 15px;
+  color: var(--text2);
+  max-width: 620px;
+  line-height: 1.75;
+}
+
+/* Claims */
 .claims {
-  margin-top: 32px;
+  margin-top: 36px;
   border: 1px solid var(--border2);
-  border-radius: 8px; overflow: hidden;
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 .claims-title {
-  padding: 10px 16px;
-  background: var(--surface);
-  font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+  padding: 10px 18px;
+  background: var(--surface2);
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text3);
   border-bottom: 1px solid var(--border);
 }
 .claim-item {
-  display: flex; align-items: baseline; gap: 14px;
-  padding: 11px 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 13px 18px;
   border-bottom: 1px solid var(--border);
-  font-size: 11px; line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
   transition: background 0.15s;
 }
 .claim-item:last-child { border-bottom: none; }
 .claim-item:hover { background: var(--surface); }
 .claim-num {
-  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 800;
-  color: var(--border2); flex-shrink: 0; width: 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text3);
+  flex-shrink: 0;
+  width: 22px;
+  padding-top: 2px;
 }
-.claim-text { color: var(--muted); }
-.claim-text strong { color: var(--text); }
+.claim-text { color: var(--text2); }
+.claim-text strong { color: var(--text); font-weight: 500; }
 
 /* ─── SECTION ─── */
 .section {
-  max-width: 1100px; margin: 0 auto;
-  padding: 52px 40px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 60px 48px;
   border-bottom: 1px solid var(--border);
 }
 
-/* claim-first header */
-.sec-claim {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(18px,2.5vw,26px);
-  font-weight: 800; letter-spacing: -0.5px;
-  color: var(--text); line-height: 1.15;
-  margin-bottom: 8px;
+.sec-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.sec-claim em { font-style:normal; color: var(--gold); }
+.sec-tag::before {
+  content: '';
+  width: 16px;
+  height: 1px;
+  background: var(--text3);
+}
+
+.sec-claim {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(20px, 2.4vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+.sec-claim em { font-style: italic; color: var(--gold); }
 .sec-claim .red { color: var(--red); }
 .sec-claim .grn { color: var(--grn); }
 
 .sec-explain {
-  font-size: 11px; color: var(--muted); line-height: 1.8;
-  max-width: 680px; margin-bottom: 28px;
+  font-size: 14px;
+  color: var(--text2);
+  line-height: 1.8;
+  max-width: 680px;
+  margin-bottom: 32px;
 }
-.sec-explain strong { color: var(--text); }
-
-.sec-tag {
-  font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase;
-  color: var(--border2); margin-bottom: 10px;
-  display: flex; align-items: center; gap: 8px;
-}
-.sec-tag::before { content:''; width:16px; height:1px; background:var(--border2); }
+.sec-explain strong { color: var(--text); font-weight: 500; }
 
 /* ─── PANELS ─── */
-.two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
 .panel {
-  background: var(--surface); border: 1px solid var(--border2);
-  border-radius: 8px; overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
+
 .panel-head {
-  padding: 12px 16px;
+  padding: 13px 18px;
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.panel-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.panel-head-title { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; }
-.panel-head-badge { margin-left:auto; }
-.panel-body { padding: 18px 16px; }
+.panel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.panel-head-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.panel-head-badge { margin-left: auto; }
+.panel-body { padding: 20px 18px; }
 
 /* ─── BADGES ─── */
 .badge {
-  display:inline-flex; align-items:center;
-  padding:3px 8px; border-radius:3px; font-size:9px;
-  letter-spacing:0.5px; text-transform:uppercase; font-weight:500;
-  font-family:'IBM Plex Mono',monospace;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  font-family: 'DM Mono', monospace;
+  font-weight: 400;
+  white-space: nowrap;
 }
-.badge-red { background:var(--red-dim); color:var(--red); border:1px solid var(--red-mid); }
-.badge-grn { background:var(--grn-dim); color:var(--grn); border:1px solid var(--grn-mid); }
-.badge-gold { background:var(--gold-dim); color:var(--gold); border:1px solid #4a3a10; }
-.badge-blue { background:var(--blue-dim); color:var(--blue); border:1px solid #1a2a5a; }
+.badge-red   { background: var(--red-bg);  color: var(--red);  border: 1px solid var(--red-border); }
+.badge-grn   { background: var(--grn-bg);  color: var(--grn);  border: 1px solid var(--grn-border); }
+.badge-gold  { background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold-border); }
+.badge-blue  { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
 
 /* ─── FORMULA ─── */
 .formula-row {
-  background:var(--dim); border-radius:5px;
-  padding:12px 14px; margin-top:12px;
-  font-size:12px; line-height:2;
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin-top: 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  line-height: 2;
+  color: var(--text2);
 }
-.f-note { font-size:9px; color:var(--muted); }
+.formula-row .f-main { color: var(--text); }
+.f-note {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 4px;
+  font-family: 'DM Sans', sans-serif;
+}
 
 /* ─── STAT ROW ─── */
-.stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:24px; }
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 28px;
+}
 .stat-card {
-  background:var(--surface); border:1px solid var(--border2);
-  border-radius:6px; padding:18px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 20px 18px;
 }
 .stat-num {
-  font-family:'Syne',sans-serif; font-size:36px; font-weight:800;
-  line-height:1; margin-bottom:6px;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 8px;
 }
-.stat-label { font-size:10px; color:var(--muted); line-height:1.6; }
+.stat-label {
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.7;
+}
 
 /* ─── INSIGHT STRIP ─── */
 .insight-strip {
-  background:var(--surface); border:1px solid var(--border2);
-  border-top:2px solid var(--gold);
-  border-radius:8px; padding:24px;
-  display:grid; grid-template-columns:1fr 1fr; gap:24px;
-  margin-top:16px;
+  background: var(--surface);
+  border: 1px solid var(--gold-border);
+  border-top: 2px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-top: 20px;
 }
-.ins-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin-bottom:8px; }
-.ins-text { font-size:11px; color:var(--muted); line-height:1.8; }
-.ins-text strong { color:var(--text); }
+.ins-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+.ins-text {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.8;
+}
+.ins-text strong { color: var(--text); font-weight: 500; }
 
 /* ─── SLIDERS ─── */
 .slider-wrap {
-  background:var(--surface); border:1px solid var(--border2);
-  border-radius:8px; padding:20px 24px; margin-bottom:16px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 22px 26px;
+  margin-bottom: 16px;
 }
-.slider-row { display:flex; align-items:center; gap:14px; margin-bottom:10px; }
-.slider-row:last-of-type { margin-bottom:0; }
-.slider-label { font-size:10px; color:var(--muted); width:120px; flex-shrink:0; }
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.slider-row:last-of-type { margin-bottom: 0; }
+.slider-label {
+  font-size: 12px;
+  color: var(--text2);
+  width: 120px;
+  flex-shrink: 0;
+  font-family: 'DM Mono', monospace;
+}
 input[type=range] {
-  flex:1; height:3px; accent-color:var(--gold);
-  appearance:none; background:var(--border2); border-radius:2px; cursor:pointer;
+  flex: 1;
+  height: 3px;
+  accent-color: var(--gold);
+  appearance: none;
+  background: var(--border2);
+  border-radius: 2px;
+  cursor: pointer;
 }
 input[type=range]::-webkit-slider-thumb {
-  appearance:none; width:14px; height:14px;
-  border-radius:50%; background:var(--gold); cursor:pointer;
-  box-shadow:0 0 8px rgba(240,184,64,0.5);
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--gold);
+  cursor: pointer;
 }
-.slider-v { font-size:11px; color:var(--gold); width:44px; text-align:right; }
+.slider-v {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--gold);
+  width: 44px;
+  text-align: right;
+}
 
 /* ─── STATUS BAR ─── */
 .status-bar {
-  background:var(--grn-dim); border:1px solid var(--grn-mid);
-  border-radius:4px; padding:10px 14px;
-  font-size:10px; color:var(--grn); line-height:1.7; margin-top:12px;
+  background: var(--grn-bg);
+  border: 1px solid var(--grn-border);
+  border-radius: 6px;
+  padding: 11px 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--grn);
+  line-height: 1.7;
+  margin-top: 14px;
 }
-
-/* ─── MEMORY HIERARCHY ─── */
-.mem-grid { display:grid; grid-template-columns:1fr 60px 1fr; gap:0; align-items:center; }
-.mem-vs { font-family:'Syne',sans-serif; font-size:16px; color:var(--muted); text-align:center; font-style:italic; }
 
 /* ─── NAV PILLS ─── */
 .nav-pills {
-  display:flex; gap:8px; padding:18px 40px;
-  border-bottom:1px solid var(--border);
-  max-width:1100px; margin:0 auto; flex-wrap:wrap;
+  display: flex;
+  gap: 8px;
+  padding: 18px 48px;
+  border-bottom: 1px solid var(--border);
+  max-width: 1120px;
+  margin: 0 auto;
+  flex-wrap: wrap;
 }
 .pill {
-  padding:5px 12px; border-radius:20px; font-size:9px;
-  letter-spacing:1px; text-transform:uppercase; cursor:pointer;
-  border:1px solid var(--border2); color:var(--muted);
-  background:transparent; font-family:'IBM Plex Mono',monospace;
-  transition:all 0.15s;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  background: transparent;
+  transition: all 0.15s;
 }
-.pill:hover, .pill.active { background:var(--grn); color:var(--bg); border-color:var(--grn); }
+.pill:hover,
+.pill.active {
+  background: var(--grn);
+  color: var(--bg);
+  border-color: var(--grn);
+  font-weight: 500;
+}
 
-@media(max-width:680px){
-  .two-col { grid-template-columns:1fr; }
-  .stat-row { grid-template-columns:1fr 1fr; }
-  .insight-strip { grid-template-columns:1fr; }
-  .section { padding:36px 20px; }
-  .hero { padding:40px 20px 36px; }
-  .nav-pills { padding:14px 20px; }
-  .mem-grid { grid-template-columns:1fr; }
-  .mem-vs { display:none; }
+/* ─── PANEL CAPTION ─── */
+.panel-caption {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 12px;
+  line-height: 1.7;
+}
+.panel-caption span { color: var(--red); }
+.panel-caption span.grn { color: var(--grn); }
+
+@media(max-width:720px){
+  .two-col { grid-template-columns: 1fr; }
+  .stat-row { grid-template-columns: 1fr 1fr; }
+  .insight-strip { grid-template-columns: 1fr; }
+  .section { padding: 40px 20px; }
+  .hero { padding: 48px 20px 40px; }
+  .nav-pills { padding: 14px 20px; }
 }
 </style>
 </head>
 <body>
 
-<!-- ═══ HERO ═══ -->
+<!-- HERO -->
 <div class="hero">
   <div class="hero-tag">AIWN — Adaptive Indexed Weight Networks</div>
   <h1>A new class of neural network layer.<br><em>Each weight knows which input is coming.</em></h1>
@@ -270,9 +449,7 @@ input[type=range]::-webkit-slider-thumb {
   <div class="pill">07 · Interactive</div>
 </div>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- 01 · THE PROBLEM -->
-<!-- ═══════════════════════════════════════════ -->
+<!-- 01 THE PROBLEM -->
 <div class="section" id="s1">
   <div class="sec-tag">01 · The Problem</div>
   <div class="sec-claim">GPUs spend most of their time <span class="red">reading weights they don't need.</span></div>
@@ -289,9 +466,7 @@ input[type=range]::-webkit-slider-thumb {
       </div>
       <div class="panel-body">
         <svg viewBox="0 0 380 240" width="100%" style="display:block;" id="memHierSVG"></svg>
-        <div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.7;">
-          Each level is orders of magnitude faster but smaller. <span style="color:var(--red)">Reading from VRAM is the bottleneck — 100× slower than arithmetic.</span>
-        </div>
+        <div class="panel-caption">Each level is orders of magnitude faster but smaller. <span>Reading from VRAM is the bottleneck — 100× slower than arithmetic.</span></div>
       </div>
     </div>
 
@@ -303,17 +478,13 @@ input[type=range]::-webkit-slider-thumb {
       </div>
       <div class="panel-body">
         <svg viewBox="0 0 380 240" width="100%" style="display:block;" id="mlpCostSVG"></svg>
-        <div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.7;">
-          Every forward pass reads the entire weight matrix — even though only a fraction of it is <span style="color:var(--red)">relevant to this particular input.</span>
-        </div>
+        <div class="panel-caption">Every forward pass reads the entire weight matrix — even though only a fraction of it is <span>relevant to this particular input.</span></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- 02 · THE INSIGHT -->
-<!-- ═══════════════════════════════════════════ -->
+<!-- 02 THE INSIGHT -->
 <div class="section" id="s2">
   <div class="sec-tag">02 · The Insight</div>
   <div class="sec-claim">Each weight has <em>K versions.</em> The input value picks two.</div>
@@ -332,37 +503,25 @@ input[type=range]::-webkit-slider-thumb {
       </div>
       <div class="panel-body">
         <svg viewBox="0 0 380 190" width="100%" style="display:block;">
-          <!-- inputs -->
-          <text x="16" y="50" font-family="IBM Plex Mono" font-size="10" fill="#5a5870">x = 0.1</text>
-          <text x="16" y="95" font-family="IBM Plex Mono" font-size="10" fill="#5a5870">x = 0.5</text>
-          <text x="16" y="140" font-family="IBM Plex Mono" font-size="10" fill="#5a5870">x = 0.9</text>
-          <!-- arrows all to same card -->
+          <text x="16" y="50" font-family="DM Mono, monospace" font-size="11" fill="#9896a8">x = 0.1</text>
+          <text x="16" y="95" font-family="DM Mono, monospace" font-size="11" fill="#9896a8">x = 0.5</text>
+          <text x="16" y="140" font-family="DM Mono, monospace" font-size="11" fill="#9896a8">x = 0.9</text>
           <defs>
             <marker id="arR" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
-              <path d="M0,0 L5,2.5 L0,5 Z" fill="#3a1a15"/>
-            </marker>
-            <marker id="arG" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
-              <path d="M0,0 L5,2.5 L0,5 Z" fill="#1a6b45"/>
-            </marker>
-            <marker id="arW" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
-              <path d="M0,0 L5,2.5 L0,5 Z" fill="#2a2a3a"/>
+              <path d="M0,0 L5,2.5 L0,5 Z" fill="rgba(255,107,91,0.4)"/>
             </marker>
           </defs>
-          <line x1="68" y1="48" x2="145" y2="82" stroke="#2a2a3a" stroke-width="1.2" marker-end="url(#arW)"/>
-          <line x1="68" y1="93" x2="145" y2="92" stroke="#2a2a3a" stroke-width="1.2" marker-end="url(#arW)"/>
-          <line x1="68" y1="138" x2="145" y2="102" stroke="#2a2a3a" stroke-width="1.2" marker-end="url(#arW)"/>
-          <!-- single card -->
-          <rect x="148" y="60" width="64" height="84" rx="6" fill="#2a1015" stroke="#e85c4a" stroke-width="2"/>
-          <text x="180" y="100" font-family="IBM Plex Mono" font-size="22" fill="#e85c4a" text-anchor="middle" font-weight="500">w</text>
-          <text x="180" y="116" font-family="IBM Plex Mono" font-size="8" fill="#7a2a20" text-anchor="middle">fixed</text>
-          <text x="155" y="72" font-family="IBM Plex Mono" font-size="7" fill="#5a2020">w</text>
-          <!-- output -->
-          <line x1="212" y1="102" x2="270" y2="102" stroke="#e85c4a" stroke-width="1.5" marker-end="url(#arR)"/>
-          <text x="276" y="98" font-family="IBM Plex Mono" font-size="10" fill="#e85c4a">x·w</text>
-          <text x="276" y="114" font-family="IBM Plex Mono" font-size="9" fill="#5a5870">same w</text>
-          <text x="276" y="128" font-family="IBM Plex Mono" font-size="9" fill="#5a5870">always</text>
-          <!-- annotation -->
-          <text x="180" y="170" font-family="IBM Plex Mono" font-size="9" fill="#3a1a15" text-anchor="middle">any input → same card → same w</text>
+          <line x1="72" y1="48" x2="148" y2="82" stroke="rgba(255,255,255,0.12)" stroke-width="1.2"/>
+          <line x1="72" y1="93" x2="148" y2="92" stroke="rgba(255,255,255,0.12)" stroke-width="1.2"/>
+          <line x1="72" y1="138" x2="148" y2="102" stroke="rgba(255,255,255,0.12)" stroke-width="1.2"/>
+          <rect x="150" y="62" width="62" height="80" rx="7" fill="rgba(255,107,91,0.1)" stroke="#ff6b5b" stroke-width="1.8"/>
+          <text x="181" y="102" font-family="DM Mono, monospace" font-size="22" fill="#ff6b5b" text-anchor="middle" font-weight="500">w</text>
+          <text x="181" y="118" font-family="DM Mono, monospace" font-size="8" fill="rgba(255,107,91,0.5)" text-anchor="middle">fixed</text>
+          <line x1="212" y1="102" x2="268" y2="102" stroke="#ff6b5b" stroke-width="1.5" marker-end="url(#arR)"/>
+          <text x="274" y="98" font-family="DM Mono, monospace" font-size="11" fill="#ff6b5b">x·w</text>
+          <text x="274" y="114" font-family="DM Mono, monospace" font-size="10" fill="#9896a8">same w</text>
+          <text x="274" y="128" font-family="DM Mono, monospace" font-size="10" fill="#9896a8">always</text>
+          <text x="181" y="170" font-family="DM Mono, monospace" font-size="9" fill="rgba(255,107,91,0.35)" text-anchor="middle">any input → same card → same w</text>
         </svg>
         <div class="formula-row">
           <div class="f-main">output = x · <span style="color:var(--red)">w</span></div>
@@ -381,23 +540,19 @@ input[type=range]::-webkit-slider-thumb {
         <svg viewBox="0 0 380 190" width="100%" style="display:block;" id="deckSVG">
           <defs>
             <marker id="arG2" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
-              <path d="M0,0 L5,2.5 L0,5 Z" fill="#1a6b45"/>
+              <path d="M0,0 L5,2.5 L0,5 Z" fill="rgba(61,214,140,0.5)"/>
             </marker>
           </defs>
-          <!-- input label -->
-          <text x="16" y="90" font-family="IBM Plex Mono" font-size="10" fill="#5a5870">input x</text>
-          <text x="16" y="106" font-family="IBM Plex Mono" font-size="10" fill="#3dd68c" id="deckXLabel">= 0.38</text>
+          <text x="16" y="90" font-family="DM Mono, monospace" font-size="11" fill="#9896a8">input x</text>
+          <text x="16" y="106" font-family="DM Mono, monospace" font-size="11" fill="#3dd68c" id="deckXLabel">= 0.38</text>
           <line x1="70" y1="96" x2="104" y2="96" stroke="#3dd68c" stroke-width="1.5" marker-end="url(#arG2)"/>
-          <!-- deck cards drawn by JS -->
           <g id="deckCardGroup"></g>
-          <!-- needle -->
-          <line id="deckNeedle" x1="180" y1="14" x2="180" y2="165" stroke="#f0b840" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
-          <text id="deckNeedleLabel" x="180" y="11" font-family="IBM Plex Mono" font-size="8" fill="#f0b840" text-anchor="middle">x</text>
-          <!-- output -->
+          <line id="deckNeedle" x1="180" y1="14" x2="180" y2="165" stroke="#f5c842" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+          <text id="deckNeedleLabel" x="180" y="11" font-family="DM Mono, monospace" font-size="8" fill="#f5c842" text-anchor="middle">x</text>
           <line x1="305" y1="96" x2="345" y2="96" stroke="#3dd68c" stroke-width="1.5" marker-end="url(#arG2)"/>
-          <text x="350" y="88" font-family="IBM Plex Mono" font-size="9" fill="#3dd68c">lerp</text>
-          <text x="350" y="102" font-family="IBM Plex Mono" font-size="9" fill="#5a5870" id="deckLerpLabel">(wₖ,wₖ₊₁)</text>
-          <text x="190" y="178" font-family="IBM Plex Mono" font-size="9" fill="#5a5870" text-anchor="middle">input reaches into deck — pulls nearest 2 cards</text>
+          <text x="350" y="88" font-family="DM Mono, monospace" font-size="9" fill="#3dd68c">lerp</text>
+          <text x="350" y="102" font-family="DM Mono, monospace" font-size="9" fill="#9896a8" id="deckLerpLabel">(wₖ,wₖ₊₁)</text>
+          <text x="190" y="178" font-family="DM Mono, monospace" font-size="9" fill="#5c5a6e" text-anchor="middle">input reaches into deck — pulls nearest 2 cards</text>
         </svg>
         <div class="formula-row" style="border-left:2px solid var(--grn)">
           <div class="f-main">k = floor(x·K) &nbsp;·&nbsp; frac = x·K − k</div>
@@ -409,9 +564,7 @@ input[type=range]::-webkit-slider-thumb {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- 03 · WHY IT'S FAST -->
-<!-- ═══════════════════════════════════════════ -->
+<!-- 03 WHY IT'S FAST -->
 <div class="section" id="s3">
   <div class="sec-tag">03 · Why It's Fast</div>
   <div class="sec-claim">Index computation is <em>free.</em> Memory savings are <span class="red">enormous.</span></div>
@@ -431,10 +584,7 @@ input[type=range]::-webkit-slider-thumb {
       </div>
       <div class="panel-body">
         <svg viewBox="0 0 380 200" width="100%" style="display:block;" id="indexCostSVG"></svg>
-        <div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.7;">
-          <span style="color:var(--gold)">k = floor(x · K)</span> — one operation.
-          The entire routing decision happens before any weight is read.
-        </div>
+        <div class="panel-caption" style="color:var(--text2)"><span style="color:var(--gold)">k = floor(x · K)</span> — one operation. The entire routing decision happens before any weight is read.</div>
       </div>
     </div>
 
@@ -446,9 +596,7 @@ input[type=range]::-webkit-slider-thumb {
       </div>
       <div class="panel-body">
         <svg viewBox="0 0 380 200" width="100%" style="display:block;" id="readsBarSVG"></svg>
-        <div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.7;">
-          Drag K below to see how reads scale. <span style="color:var(--grn)">Reads fall as 2/K regardless of model size.</span>
-        </div>
+        <div class="panel-caption">Drag K below to see how reads scale. <span class="grn">Reads fall as 2/K regardless of model size.</span></div>
       </div>
     </div>
   </div>
@@ -469,9 +617,7 @@ input[type=range]::-webkit-slider-thumb {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- 04 · WHY ACCURATE + SMALLER -->
-<!-- ═══════════════════════════════════════════ -->
+<!-- 04 WHY ACCURATE -->
 <div class="section" id="s4">
   <div class="sec-tag">04 · Why Accuracy Holds — and the Network Can Be Smaller</div>
   <div class="sec-claim">K local fits <em>always beat</em> one global fit. <span class="grn">Smaller networks become viable.</span></div>
@@ -491,9 +637,7 @@ input[type=range]::-webkit-slider-thumb {
       </div>
       <div class="panel-body">
         <svg viewBox="0 0 380 200" width="100%" style="display:block;" id="mlpDecompSVG"></svg>
-        <div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.7;">
-          One W must fit all regions. No region is optimal. <span style="color:var(--red)">Large residual errors in every bucket.</span>
-        </div>
+        <div class="panel-caption">One W must fit all regions. No region is optimal. <span>Large residual errors in every bucket.</span></div>
       </div>
     </div>
     <div class="panel">
@@ -504,14 +648,11 @@ input[type=range]::-webkit-slider-thumb {
       </div>
       <div class="panel-body">
         <svg viewBox="0 0 380 200" width="100%" style="display:block;" id="aiwnDecompSVG"></svg>
-        <div style="font-size:10px;color:var(--muted);line-height:1.7;margin-top:10px;">
-          Each bucket fits its own narrow region. <span style="color:var(--grn)">No bucket compromises for another.</span>
-        </div>
+        <div class="panel-caption">Each bucket fits its own narrow region. <span class="grn">No bucket compromises for another.</span></div>
       </div>
     </div>
   </div>
 
-  <!-- network size argument -->
   <div class="panel" style="margin-top:16px;">
     <div class="panel-head">
       <div class="panel-dot" style="background:var(--blue)"></div>
@@ -520,11 +661,7 @@ input[type=range]::-webkit-slider-thumb {
     </div>
     <div class="panel-body">
       <svg viewBox="0 0 760 160" width="100%" style="display:block;" id="smallerNetSVG"></svg>
-      <div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.7;">
-        Each bucket only covers 1/K of input space — so its internal weight matrix needs proportionally less capacity.
-        <strong style="color:var(--text)"> d_effective per bucket = d/√K.</strong>
-        At K=32: each slice needs ~5.6× less capacity than the full layer. Same total expressiveness. Smaller reads.
-      </div>
+      <div class="panel-caption">Each bucket only covers 1/K of input space — so its internal weight matrix needs proportionally less capacity. <strong style="color:var(--text)">d_effective per bucket = d/√K.</strong> At K=32: each slice needs ~5.6× less capacity. Same total expressiveness. Smaller reads.</div>
     </div>
   </div>
 
@@ -544,9 +681,7 @@ input[type=range]::-webkit-slider-thumb {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- 05 · FULL NETWORK -->
-<!-- ═══════════════════════════════════════════ -->
+<!-- 05 FULL NETWORK -->
 <div class="section" id="s5">
   <div class="sec-tag">05 · Full Network</div>
   <div class="sec-claim">Every connection in the network <em>carries a deck.</em></div>
@@ -579,9 +714,7 @@ input[type=range]::-webkit-slider-thumb {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- 06 · WEIGHT TABLE -->
-<!-- ═══════════════════════════════════════════ -->
+<!-- 06 WEIGHT TABLE -->
 <div class="section" id="s6">
   <div class="sec-tag">06 · Weight Table</div>
   <div class="sec-claim">Same parameters stored. <span class="red">100%</span> read vs <span class="grn">2/K</span> read.</div>
@@ -613,9 +746,7 @@ input[type=range]::-webkit-slider-thumb {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- 07 · INTERACTIVE -->
-<!-- ═══════════════════════════════════════════ -->
+<!-- 07 INTERACTIVE -->
 <div class="section" id="s7">
   <div class="sec-tag">07 · Interactive</div>
   <div class="sec-claim">Drag the input. Watch <em>exactly which cards get pulled.</em></div>
@@ -643,7 +774,7 @@ input[type=range]::-webkit-slider-thumb {
       <div class="panel-head-title" style="color:var(--gold)">All K cards — one parameter's deck</div>
       <span class="badge badge-gold panel-head-badge" id="interactiveBadge">2 of 8 = 25%</span>
     </div>
-    <div class="panel-body" style="padding:14px 12px;">
+    <div class="panel-body" style="padding:16px 14px;">
       <svg viewBox="0 0 1000 180" width="100%" style="display:block;" id="interactiveSVG"></svg>
       <div class="status-bar" id="statusBar"></div>
     </div>
@@ -651,15 +782,16 @@ input[type=range]::-webkit-slider-thumb {
 </div>
 
 <script>
-// ─── STATE ────────────────────────────────────
 let xIn = 0.38, K = 8;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-const RED='#e85c4a',RED_D='#3a1a15',RED_M='#7a2a20';
-const GRN='#3dd68c',GRN_D='#0d2a1a',GRN_M='#1a6b45';
-const GOLD='#f0b840',MUTED='#5a5870',BORDER='#2a2a3a';
-const SURF='#13131a',TEXT='#e8e6e0',DIM='#2e2c3a';
-const BLUE='#5b8dee',BLUE_D='#0d1a3a';
+const RED='#ff6b5b', RED_D='rgba(255,107,91,0.1)', RED_M='rgba(255,107,91,0.3)';
+const GRN='#3dd68c', GRN_D='rgba(61,214,140,0.1)', GRN_M='rgba(61,214,140,0.3)';
+const GOLD='#f5c842', GOLD_D='rgba(245,200,66,0.1)';
+const MUTED='#9896a8', DIM='#5c5a6e';
+const BORDER='rgba(255,255,255,0.1)', SURF='#161720', BG='#0e0f14';
+const BLUE='#6ba3f5', TEXT='#f0ede6';
+const MONO="'DM Mono', monospace";
 
 function el(tag,attrs={}) {
   const e=document.createElementNS(SVG_NS,tag);
@@ -667,7 +799,7 @@ function el(tag,attrs={}) {
   return e;
 }
 function t(content,attrs={}) {
-  const e=el('text',{'font-family':'IBM Plex Mono','font-size':'10',...attrs});
+  const e=el('text',{'font-family':MONO,'font-size':'10',...attrs});
   e.textContent=content; return e;
 }
 function setSVG(id,children) {
@@ -677,151 +809,122 @@ function setSVG(id,children) {
   children.forEach(c=>svg.appendChild(c));
 }
 
-// ─── 01: MEMORY HIERARCHY ─────────────────────
 function drawMemHierarchy() {
   const W=380,H=240,els=[];
   const levels=[
-    {label:'Tensor Cores',sub:'arithmetic units',size:'fast',speed:'~100 TFLOPS',col:GRN,w:80,y:20,h:28},
-    {label:'L1 Cache / Shared Mem',sub:'per SM, ~100KB',size:'medium',speed:'~10 TB/s',col:'#f0b840',w:160,y:62,h:28},
-    {label:'L2 Cache',sub:'on-chip, ~40MB',size:'medium',speed:'~3 TB/s',col:'#f0b840',w:220,y:104,h:28},
-    {label:'HBM / VRAM',sub:'off-chip, GBs',size:'big',speed:'~3 TB/s (H100)',col:RED,w:320,y:148,h:28},
+    {label:'Tensor Cores — arithmetic units',speed:'~100 TFLOPS',col:GRN,w:90,y:20,h:30},
+    {label:'L1 Cache / Shared Memory (~100KB)',speed:'~10 TB/s',col:GOLD,w:180,y:64,h:30},
+    {label:'L2 Cache (~40MB on-chip)',speed:'~3 TB/s',col:GOLD,w:260,y:108,h:30},
+    {label:'HBM / VRAM (off-chip, GBs)',speed:'~3 TB/s (H100)',col:RED,w:340,y:152,h:30},
   ];
-
-  // center each bar
   levels.forEach((lv,i)=>{
     const x=(W-lv.w)/2;
-    // bar
-    const r=el('rect',{x,y:lv.y,width:lv.w,height:lv.h,rx:3,
-      fill:i===0?GRN_D:i<=2?'#2a2010':RED_D,
-      stroke:lv.col,'stroke-width':1.5});
-    els.push(r);
-    // label
-    els.push(t(lv.label,{x:W/2,y:lv.y+lv.h/2+2,'text-anchor':'middle','font-size':'9',fill:lv.col}));
-    // speed badge on right
-    els.push(t(lv.speed,{x:x+lv.w+8,y:lv.y+lv.h/2+3,'font-size':'8',fill:MUTED}));
-    // connecting arrow
+    const bgAlpha=lv.col===GRN?'0.12':lv.col===GOLD?'0.1':'0.12';
+    els.push(el('rect',{x,y:lv.y,width:lv.w,height:lv.h,rx:4,
+      fill:`rgba(${lv.col===GRN?'61,214,140':lv.col===GOLD?'245,200,66':'255,107,91'},${bgAlpha})`,
+      stroke:lv.col,'stroke-width':1.2}));
+    const tl=document.createElementNS(SVG_NS,'text');
+    tl.setAttribute('x',W/2); tl.setAttribute('y',lv.y+lv.h/2+4);
+    tl.setAttribute('text-anchor','middle');
+    tl.setAttribute('font-family',MONO); tl.setAttribute('font-size','9');
+    tl.setAttribute('fill',lv.col); tl.textContent=lv.label; els.push(tl);
+    const ts=document.createElementNS(SVG_NS,'text');
+    ts.setAttribute('x',x+lv.w+8); ts.setAttribute('y',lv.y+lv.h/2+4);
+    ts.setAttribute('font-family',MONO); ts.setAttribute('font-size','8');
+    ts.setAttribute('fill',MUTED); ts.textContent=lv.speed; els.push(ts);
     if(i<levels.length-1){
       els.push(el('line',{x1:W/2,y1:lv.y+lv.h,x2:W/2,y2:levels[i+1].y,
         stroke:BORDER,'stroke-width':1,'stroke-dasharray':'2,2'}));
     }
   });
-
-  // annotation: bottleneck arrow
-  els.push(el('rect',{x:10,y:142,width:130,height:42,rx:3,fill:RED_D,stroke:RED,'stroke-width':1}));
-  els.push(t('← bottleneck',{x:16,y:158,'font-size':'9',fill:RED}));
-  els.push(t('reading W from VRAM',{x:16,y:173,'font-size':'8',fill:MUTED}));
-  els.push(t('costs ~100× more',{x:16,y:'186','font-size':'8',fill:MUTED}));
-
-  // cost comparison
-  els.push(t('1× cost',{x:W-8,y:34,'text-anchor':'end','font-size':'8',fill:GRN}));
-  els.push(t('~10× cost',{x:W-8,y:76,'text-anchor':'end','font-size':'8',fill:GOLD}));
-  els.push(t('~30× cost',{x:W-8,y:118,'text-anchor':'end','font-size':'8',fill:GOLD}));
-  els.push(t('~100× cost',{x:W-8,y:162,'text-anchor':'end','font-size':'8',fill:RED}));
-
-  // title
-  els.push(t('relative energy & latency per access',{x:W/2,y:H-6,'text-anchor':'middle','font-size':'8',fill:MUTED}));
-
+  els.push(el('rect',{x:10,y:146,width:132,height:44,rx:4,fill:RED_D,stroke:RED_M,'stroke-width':1}));
+  els.push(t('← bottleneck',{x:18,y:162,'font-size':'9',fill:RED}));
+  els.push(t('reading W from VRAM',{x:18,y:176,'font-size':'8',fill:MUTED}));
+  els.push(t('costs ~100× more',{x:18,y:190,'font-size':'8',fill:MUTED}));
+  ['1×','~10×','~30×','~100×'].forEach((c,i)=>{
+    const yy=[34,78,122,166][i];
+    els.push(t(c+' cost',{x:W-8,y:yy,'text-anchor':'end','font-size':'8',
+      fill:[GRN,GOLD,GOLD,RED][i]}));
+  });
+  els.push(t('relative energy & latency per access',{x:W/2,y:H-4,'text-anchor':'middle','font-size':'8',fill:DIM}));
   setSVG('memHierSVG',els);
 }
 
-// ─── 01: MLP COST ─────────────────────────────
 function drawMLPCost() {
   const W=380,H=240,els=[];
-
-  // weight matrix full read
   const rows=8,cols=14,cw=22,ch=20;
   const startX=20,startY=20;
-
   els.push(t('W matrix — d × d weights',{x:W/2,y:14,'text-anchor':'middle','font-size':'9',fill:MUTED}));
-
   for(let r=0;r<rows;r++){
     for(let c=0;c<cols;c++){
       const seed=(r*17+c*11)%100;
-      const v=0.2+seed/100*0.6;
+      const v=0.15+seed/100*0.4;
       els.push(el('rect',{
         x:startX+c*cw,y:startY+r*ch,width:cw-1,height:ch-1,rx:1.5,
-        fill:`rgba(232,92,74,${v*0.45})`,stroke:`rgba(232,92,74,0.3)`,'stroke-width':0.5
+        fill:`rgba(255,107,91,${v})`,stroke:`rgba(255,107,91,0.25)`,'stroke-width':0.5
       }));
     }
   }
-
-  // ALL READ border
   els.push(el('rect',{x:startX-2,y:startY-2,width:cols*cw+4,height:rows*ch+4,rx:3,
     fill:'none',stroke:RED,'stroke-width':2}));
-
-  // arrows showing full read
-  els.push(t('↑ entire matrix read',{x:startX+cols*cw/2,y:startY+rows*ch+20,'text-anchor':'middle','font-size':'9',fill:RED}));
+  els.push(t('↑ entire matrix read',{x:startX+cols*cw/2,y:startY+rows*ch+20,'text-anchor':'middle','font-size':'10',fill:RED}));
   els.push(t('for every single input',{x:startX+cols*cw/2,y:startY+rows*ch+34,'text-anchor':'middle','font-size':'9',fill:MUTED}));
-
-  // cost bar
   const barY=H-36,barH=18;
   els.push(el('rect',{x:startX,y:barY,width:cols*cw,height:barH,rx:3,fill:RED_D,stroke:RED,'stroke-width':1}));
-  els.push(el('rect',{x:startX,y:barY,width:cols*cw,height:barH,rx:3,fill:`rgba(232,92,74,0.4)`}));
-  els.push(t('100% of VRAM bandwidth consumed per pass',{
-    x:startX+cols*cw/2,y:barY+barH/2+4,'text-anchor':'middle','font-size':'8',fill:RED
-  }));
-
+  els.push(el('rect',{x:startX,y:barY,width:cols*cw,height:barH,rx:3,fill:'rgba(255,107,91,0.25)'}));
+  const bt=document.createElementNS(SVG_NS,'text');
+  bt.setAttribute('x',startX+cols*cw/2); bt.setAttribute('y',barY+barH/2+4);
+  bt.setAttribute('text-anchor','middle'); bt.setAttribute('font-family',MONO);
+  bt.setAttribute('font-size','8'); bt.setAttribute('fill',RED);
+  bt.textContent='100% of VRAM bandwidth consumed per pass'; els.push(bt);
   setSVG('mlpCostSVG',els);
 }
 
-// ─── 02: DECK CARDS ───────────────────────────
 function drawDeckCards() {
   const activeK=Math.min(Math.floor(xIn*8),7);
   const frac=(xIn*8)-Math.floor(xIn*8);
   const lerpK=Math.min(activeK+1,7);
-  const K8=8;
-
   document.getElementById('deckXLabel').textContent=`= ${xIn.toFixed(2)}`;
   document.getElementById('deckLerpLabel').textContent=`(w${activeK+1},w${activeK+2})`;
-
   const deckStart=108,deckEnd=302;
   const nx=deckStart+xIn*(deckEnd-deckStart);
   const needle=document.getElementById('deckNeedle');
   needle.setAttribute('x1',nx); needle.setAttribute('x2',nx);
   const nl=document.getElementById('deckNeedleLabel');
   nl.setAttribute('x',nx); nl.textContent=`${xIn.toFixed(2)}`;
-
   const container=document.getElementById('deckCardGroup');
   container.innerHTML='';
   const cw=22,ch=86,gap=24,cardTop=50;
-
-  for(let k=0;k<K8;k++){
-    const cx=deckStart+k*gap+(deckEnd-deckStart)/(K8);
+  for(let k=0;k<8;k++){
+    const cx=deckStart+k*gap+(deckEnd-deckStart)/8;
     const isA=k===activeK,isL=k===lerpK&&lerpK!==activeK;
     const g=document.createElementNS(SVG_NS,'g');
-
     if(isA||isL){
       g.appendChild(el('rect',{
         x:cx-cw/2-3,y:cardTop-3,width:cw+6,height:ch+6,rx:6,
-        fill:isA?`rgba(61,214,140,0.12)`:`rgba(61,214,140,0.05)`,stroke:'none'
+        fill:isA?'rgba(61,214,140,0.08)':'rgba(61,214,140,0.03)',stroke:'none'
       }));
     }
-
     g.appendChild(el('rect',{
       x:cx-cw/2,y:cardTop,width:cw,height:ch,rx:4,
-      fill:isA?'#0d2a1a':isL?'#0a1f14':'#0f0f14',
-      stroke:isA?GRN:isL?`rgba(61,214,140,0.5)`:BORDER,
-      'stroke-width':isA?2:isL?1.2:0.7,
+      fill:isA?'rgba(61,214,140,0.12)':isL?'rgba(61,214,140,0.06)':'rgba(255,255,255,0.03)',
+      stroke:isA?GRN:isL?'rgba(61,214,140,0.4)':'rgba(255,255,255,0.08)',
+      'stroke-width':isA?1.8:isL?1.2:0.7,
       'stroke-dasharray':isL?'3,2':'none'
     }));
-
     const lbl=document.createElementNS(SVG_NS,'text');
     lbl.setAttribute('x',cx); lbl.setAttribute('y',cardTop+ch/2+4);
     lbl.setAttribute('text-anchor','middle');
-    lbl.setAttribute('font-family','IBM Plex Mono'); lbl.setAttribute('font-size','9');
-    lbl.setAttribute('fill',isA?GRN:isL?`rgba(61,214,140,0.6)`:'#252535');
+    lbl.setAttribute('font-family',MONO); lbl.setAttribute('font-size','9');
+    lbl.setAttribute('fill',isA?GRN:isL?'rgba(61,214,140,0.55)':'rgba(255,255,255,0.12)');
     lbl.textContent=`w${k+1}`;
     g.appendChild(lbl);
-
-    if(isA){
-      g.appendChild(el('circle',{cx,cy:cardTop+10,r:3,fill:GRN}));
-    }
+    if(isA) g.appendChild(el('circle',{cx,cy:cardTop+10,r:3,fill:GRN}));
     if(isL&&lerpK!==activeK){
       const sl=document.createElementNS(SVG_NS,'text');
       sl.setAttribute('x',cx); sl.setAttribute('y',cardTop+ch-12);
-      sl.setAttribute('text-anchor','middle');
-      sl.setAttribute('font-family','IBM Plex Mono'); sl.setAttribute('font-size','7');
-      sl.setAttribute('fill',`rgba(61,214,140,0.5)`);
+      sl.setAttribute('text-anchor','middle'); sl.setAttribute('font-family',MONO);
+      sl.setAttribute('font-size','7'); sl.setAttribute('fill','rgba(61,214,140,0.5)');
       sl.textContent=`${Math.round(frac*100)}%`;
       g.appendChild(sl);
     }
@@ -829,127 +932,105 @@ function drawDeckCards() {
   }
 }
 
-// ─── 03: INDEX COST ───────────────────────────
 function drawIndexCost() {
   const W=380,H=200,els=[];
-
-  // pipeline: input → index → 2 weights → lerp → output
   const steps=[
-    {label:'Input x',sub:`= ${xIn.toFixed(2)}`,col:MUTED,x:30,w:60},
-    {label:'k = floor(x·K)',sub:'1 multiply + 1 floor',col:GOLD,x:120,w:100},
-    {label:'Read Wₖ, Wₖ₊₁',sub:`~${Math.round(2/K*100)}% of weights`,col:GRN,x:250,w:88},
-    {label:'lerp + multiply',sub:'arithmetic',col:GRN,x:360,w:72},
+    {label:'Input x',sub:`= ${xIn.toFixed(2)}`,col:MUTED,x:28,w:60},
+    {label:'k = floor(x·K)',sub:'1 multiply + 1 floor',col:GOLD,x:116,w:106},
+    {label:'Read Wₖ, Wₖ₊₁',sub:`~${Math.round(2/K*100)}% of weights`,col:GRN,x:246,w:90},
+    {label:'lerp + multiply',sub:'arithmetic',col:GRN,x:354,w:70},
   ];
-
-  const stepY=70,stepH=48;
+  const stepY=66,stepH=50;
   steps.forEach((s,i)=>{
-    // box
     els.push(el('rect',{
-      x:s.x,y:stepY,width:s.w,height:stepH,rx:4,
-      fill:s.col===GOLD?'#2a2010':s.col===GRN?GRN_D:'#1a1a26',
-      stroke:s.col,'stroke-width':1.5
+      x:s.x,y:stepY,width:s.w,height:stepH,rx:5,
+      fill:s.col===GOLD?'rgba(245,200,66,0.1)':s.col===GRN?'rgba(61,214,140,0.1)':'rgba(255,255,255,0.04)',
+      stroke:s.col===MUTED?'rgba(255,255,255,0.12)':s.col,'stroke-width':1.2
     }));
-    // label
     const tl=document.createElementNS(SVG_NS,'text');
-    tl.setAttribute('x',s.x+s.w/2); tl.setAttribute('y',stepY+18);
-    tl.setAttribute('text-anchor','middle');
-    tl.setAttribute('font-family','IBM Plex Mono'); tl.setAttribute('font-size','9');
-    tl.setAttribute('fill',s.col); tl.textContent=s.label; els.push(tl);
+    tl.setAttribute('x',s.x+s.w/2); tl.setAttribute('y',stepY+19);
+    tl.setAttribute('text-anchor','middle'); tl.setAttribute('font-family',MONO);
+    tl.setAttribute('font-size','8.5'); tl.setAttribute('fill',s.col); tl.textContent=s.label; els.push(tl);
     const ts=document.createElementNS(SVG_NS,'text');
-    ts.setAttribute('x',s.x+s.w/2); ts.setAttribute('y',stepY+32);
-    ts.setAttribute('text-anchor','middle');
-    ts.setAttribute('font-family','IBM Plex Mono'); ts.setAttribute('font-size','8');
-    ts.setAttribute('fill',MUTED); ts.textContent=s.sub; els.push(ts);
-    // arrow
+    ts.setAttribute('x',s.x+s.w/2); ts.setAttribute('y',stepY+33);
+    ts.setAttribute('text-anchor','middle'); ts.setAttribute('font-family',MONO);
+    ts.setAttribute('font-size','7.5'); ts.setAttribute('fill',MUTED); ts.textContent=s.sub; els.push(ts);
     if(i<steps.length-1){
       els.push(el('line',{
-        x1:s.x+s.w,y1:stepY+stepH/2,
-        x2:steps[i+1].x-2,y2:stepY+stepH/2,
+        x1:s.x+s.w,y1:stepY+stepH/2,x2:steps[i+1].x-2,y2:stepY+stepH/2,
         stroke:BORDER,'stroke-width':1.5
       }));
     }
   });
-
-  // cost annotations below
   const costs=[
-    {x:60,label:'~0 cost',sub:'just a value',col:MUTED},
-    {x:170,label:'~0 cost',sub:'1 GPU instruction',col:GOLD},
-    {x:294,label:'big savings',sub:`${Math.round((1-2/K)*100)}% not read`,col:GRN},
-    {x:396,label:'normal cost',sub:'unavoidable',col:GRN},
+    {x:58,label:'~0 cost',sub:'just a value',col:MUTED},
+    {x:169,label:'~0 cost',sub:'1 GPU instruction',col:GOLD},
+    {x:291,label:'big savings',sub:`${Math.round((1-2/K)*100)}% not read`,col:GRN},
+    {x:389,label:'normal cost',sub:'unavoidable',col:GRN},
   ];
   costs.forEach(c=>{
     const tl=document.createElementNS(SVG_NS,'text');
     tl.setAttribute('x',c.x); tl.setAttribute('y',stepY+stepH+20);
-    tl.setAttribute('text-anchor','middle');
-    tl.setAttribute('font-family','IBM Plex Mono'); tl.setAttribute('font-size','9');
-    tl.setAttribute('fill',c.col); tl.textContent=c.label; els.push(tl);
+    tl.setAttribute('text-anchor','middle'); tl.setAttribute('font-family',MONO);
+    tl.setAttribute('font-size','9'); tl.setAttribute('fill',c.col); tl.textContent=c.label; els.push(tl);
     const ts=document.createElementNS(SVG_NS,'text');
     ts.setAttribute('x',c.x); ts.setAttribute('y',stepY+stepH+33);
-    ts.setAttribute('text-anchor','middle');
-    ts.setAttribute('font-family','IBM Plex Mono'); ts.setAttribute('font-size','8');
-    ts.setAttribute('fill',MUTED); ts.textContent=c.sub; els.push(ts);
+    ts.setAttribute('text-anchor','middle'); ts.setAttribute('font-family',MONO);
+    ts.setAttribute('font-size','8'); ts.setAttribute('fill',DIM); ts.textContent=c.sub; els.push(ts);
   });
-
-  // title
   els.push(t('forward pass pipeline — where time is spent',{
-    x:W/2,y:22,'text-anchor':'middle','font-size':'9',fill:MUTED
+    x:W/2,y:20,'text-anchor':'middle','font-size':'9',fill:DIM
   }));
-
   setSVG('indexCostSVG',els);
 }
 
-// ─── 03: READS BAR ────────────────────────────
 function drawReadsBar() {
   const W=380,H=200,els=[];
   const pct=Math.round(2/K*100);
-
   els.push(t(`weight reads per forward pass — K = ${K}`,{
-    x:W/2,y:16,'text-anchor':'middle','font-size':'9',fill:MUTED
+    x:W/2,y:16,'text-anchor':'middle','font-size':'9',fill:DIM
   }));
-
-  // MLP bar
-  const bh=36,by=40,bx=80,bw=W-100;
-  els.push(t('MLP',{x:bx-8,y:by+bh/2+4,'text-anchor':'end','font-size':'10',fill:RED}));
-  els.push(el('rect',{x:bx,y:by,width:bw,height:bh,rx:3,fill:RED_D,stroke:RED,'stroke-width':1}));
-  els.push(el('rect',{x:bx,y:by,width:bw,height:bh,rx:3,fill:`rgba(232,92,74,0.35)`}));
-  els.push(t('100% of weights',{x:bx+bw/2,y:by+bh/2+4,'text-anchor':'middle','font-size':'10',fill:RED}));
-
-  // AIWN bar
-  const by2=100;
+  const bh=36,by=36,bx=82,bw=W-100;
+  els.push(t('MLP',{x:bx-10,y:by+bh/2+4,'text-anchor':'end','font-size':'11',fill:RED}));
+  els.push(el('rect',{x:bx,y:by,width:bw,height:bh,rx:3,fill:RED_D,stroke:'rgba(255,107,91,0.3)','stroke-width':1}));
+  els.push(el('rect',{x:bx,y:by,width:bw,height:bh,rx:3,fill:'rgba(255,107,91,0.22)'}));
+  const mt=document.createElementNS(SVG_NS,'text');
+  mt.setAttribute('x',bx+bw/2); mt.setAttribute('y',by+bh/2+4);
+  mt.setAttribute('text-anchor','middle'); mt.setAttribute('font-family',MONO);
+  mt.setAttribute('font-size','10'); mt.setAttribute('fill',RED); mt.textContent='100% of weights'; els.push(mt);
+  const by2=96;
   const aiwnW=Math.max(bw*2/K,8);
-  els.push(t('AIWN',{x:bx-8,y:by2+bh/2+4,'text-anchor':'end','font-size':'10',fill:GRN}));
-  // full extent (stored but not read)
-  els.push(el('rect',{x:bx,y:by2,width:bw,height:bh,rx:3,fill:'#0f0f14',stroke:BORDER,'stroke-width':1}));
-  // read portion
-  els.push(el('rect',{x:bx,y:by2,width:aiwnW,height:bh,rx:3,fill:GRN_D,stroke:GRN,'stroke-width':1.5}));
-  els.push(t(`${pct}% read`,{x:bx+aiwnW/2,y:by2+bh/2+4,'text-anchor':'middle','font-size':'9',fill:GRN}));
-
-  // not-read label
+  els.push(t('AIWN',{x:bx-10,y:by2+bh/2+4,'text-anchor':'end','font-size':'11',fill:GRN}));
+  els.push(el('rect',{x:bx,y:by2,width:bw,height:bh,rx:3,fill:'rgba(255,255,255,0.02)',stroke:BORDER,'stroke-width':1}));
+  els.push(el('rect',{x:bx,y:by2,width:aiwnW,height:bh,rx:3,fill:'rgba(61,214,140,0.18)',stroke:GRN,'stroke-width':1.5}));
+  const at=document.createElementNS(SVG_NS,'text');
+  at.setAttribute('x',bx+aiwnW/2); at.setAttribute('y',by2+bh/2+4);
+  at.setAttribute('text-anchor','middle'); at.setAttribute('font-family',MONO);
+  at.setAttribute('font-size','9'); at.setAttribute('fill',GRN); at.textContent=`${pct}% read`; els.push(at);
   if(aiwnW<bw-60){
     els.push(t(`${100-pct}% untouched in VRAM`,{
-      x:bx+aiwnW+8,y:by2+bh/2+4,'font-size':'8',fill:MUTED
+      x:bx+aiwnW+8,y:by2+bh/2+4,'font-size':'8.5',fill:DIM
     }));
   }
-
-  // saving annotation
-  const saveX=bx,saveY=155;
+  const saveY=152;
   els.push(el('line',{x1:bx,y1:saveY,x2:bx+bw,y2:saveY,stroke:BORDER,'stroke-width':0.8}));
   els.push(el('line',{x1:bx,y1:saveY-4,x2:bx,y2:saveY+4,stroke:MUTED,'stroke-width':1}));
   els.push(el('line',{x1:bx+aiwnW,y1:saveY-4,x2:bx+aiwnW,y2:saveY+4,stroke:GRN,'stroke-width':1}));
-
   const saving=Math.round((1-2/K)*100);
-  els.push(t(`${saving}% fewer reads`,{
-    x:bx+aiwnW/2,y:saveY+18,'text-anchor':'middle','font-size':'10',fill:GRN,'font-weight':'600'
-  }));
-  els.push(t(`= ~${Math.round(K/2)}× less memory bandwidth`,{
-    x:bx+aiwnW/2,y:saveY+32,'text-anchor':'middle','font-size':'9',fill:MUTED
-  }));
-
+  const st=document.createElementNS(SVG_NS,'text');
+  st.setAttribute('x',bx+aiwnW/2); st.setAttribute('y',saveY+18);
+  st.setAttribute('text-anchor','middle'); st.setAttribute('font-family',MONO);
+  st.setAttribute('font-size','11'); st.setAttribute('fill',GRN); st.setAttribute('font-weight','600');
+  st.textContent=`${saving}% fewer reads`; els.push(st);
+  const st2=document.createElementNS(SVG_NS,'text');
+  st2.setAttribute('x',bx+aiwnW/2); st2.setAttribute('y',saveY+32);
+  st2.setAttribute('text-anchor','middle'); st2.setAttribute('font-family',MONO);
+  st2.setAttribute('font-size','9'); st2.setAttribute('fill',MUTED);
+  st2.textContent=`= ~${Math.round(K/2)}× less memory bandwidth`; els.push(st2);
   document.getElementById('readsBadge').textContent=`K=${K} · ${pct}% reads`;
   setSVG('readsBarSVG',els);
 }
 
-// ─── 04: DECOMP ───────────────────────────────
 const DATA_PTS=Array.from({length:18},(_,i)=>{
   const x=(i+1)/19;
   const y=0.5+0.28*Math.sin(x*Math.PI*2.8)+0.14*Math.cos(x*Math.PI*5.1)-0.08*x;
@@ -962,69 +1043,51 @@ function drawDecomp(svgId,isAIWN) {
   const iW=W-pad.l-pad.r,iH=H-pad.t-pad.b;
   const mx=x=>pad.l+x*iW;
   const my=y=>pad.t+iH-(y+0.02)*iH/1.04;
-
   els.push(el('line',{x1:pad.l,y1:pad.t,x2:pad.l,y2:pad.t+iH,stroke:BORDER,'stroke-width':1}));
   els.push(el('line',{x1:pad.l,y1:pad.t+iH,x2:pad.l+iW,y2:pad.t+iH,stroke:BORDER,'stroke-width':1}));
-
   const xt=document.createElementNS(SVG_NS,'text');
   xt.setAttribute('x',pad.l+iW/2); xt.setAttribute('y',H-4);
-  xt.setAttribute('text-anchor','middle'); xt.setAttribute('font-family','IBM Plex Mono');
-  xt.setAttribute('font-size','8'); xt.setAttribute('fill',MUTED); xt.textContent='input x';
-  els.push(xt);
-
-  const yt=document.createElementNS(SVG_NS,'text');
-  yt.setAttribute('x',9); yt.setAttribute('y',pad.t+iH/2+4);
-  yt.setAttribute('text-anchor','middle'); yt.setAttribute('font-family','IBM Plex Mono');
-  yt.setAttribute('font-size','8'); yt.setAttribute('fill',MUTED);
-  yt.setAttribute('transform',`rotate(-90,9,${pad.t+iH/2})`); yt.textContent='w(x)';
-  els.push(yt);
-
+  xt.setAttribute('text-anchor','middle'); xt.setAttribute('font-family',MONO);
+  xt.setAttribute('font-size','8'); xt.setAttribute('fill',DIM); xt.textContent='input x'; els.push(xt);
   DATA_PTS.forEach(p=>{
     els.push(el('circle',{
       cx:mx(p.x),cy:my(p.y),r:2.8,
-      fill:isAIWN?`rgba(61,214,140,0.55)`:`rgba(232,92,74,0.55)`,stroke:'none'
+      fill:isAIWN?'rgba(61,214,140,0.6)':'rgba(255,107,91,0.6)',stroke:'none'
     }));
   });
-
   if(!isAIWN){
     const avgX=DATA_PTS.reduce((s,p)=>s+p.x,0)/DATA_PTS.length;
     const avgY=DATA_PTS.reduce((s,p)=>s+p.y,0)/DATA_PTS.length;
     const slope=DATA_PTS.reduce((s,p)=>s+(p.x-avgX)*(p.y-avgY),0)/
                 DATA_PTS.reduce((s,p)=>s+(p.x-avgX)**2,0.001);
     const ic=avgY-slope*avgX;
-    // error lines
     DATA_PTS.forEach(p=>{
       const fy=slope*p.x+ic;
       els.push(el('line',{x1:mx(p.x),y1:my(p.y),x2:mx(p.x),y2:my(fy),
-        stroke:`rgba(232,92,74,0.4)`,'stroke-width':1,'stroke-dasharray':'2,2'}));
+        stroke:'rgba(255,107,91,0.3)','stroke-width':1,'stroke-dasharray':'2,2'}));
     });
-    els.push(el('line',{
-      x1:mx(0),y1:my(ic),x2:mx(1),y2:my(slope+ic),
-      stroke:RED,'stroke-width':2.5
-    }));
+    els.push(el('line',{x1:mx(0),y1:my(ic),x2:mx(1),y2:my(slope+ic),stroke:RED,'stroke-width':2.5}));
     const lt=document.createElementNS(SVG_NS,'text');
     lt.setAttribute('x',pad.l+6); lt.setAttribute('y',pad.t+14);
-    lt.setAttribute('font-family','IBM Plex Mono'); lt.setAttribute('font-size','9');
-    lt.setAttribute('fill',RED); lt.textContent='one W — compromises everywhere';
-    els.push(lt);
+    lt.setAttribute('font-family',MONO); lt.setAttribute('font-size','9');
+    lt.setAttribute('fill',RED); lt.textContent='one W — compromises everywhere'; els.push(lt);
   } else {
     const numK=5;
     for(let k=1;k<numK;k++){
       const bx=mx(k/numK);
       els.push(el('line',{x1:bx,y1:pad.t,x2:bx,y2:pad.t+iH,
-        stroke:`rgba(61,214,140,0.2)`,'stroke-width':1,'stroke-dasharray':'3,3'}));
+        stroke:'rgba(61,214,140,0.18)','stroke-width':1,'stroke-dasharray':'3,3'}));
       const bt=document.createElementNS(SVG_NS,'text');
       bt.setAttribute('x',mx((k-0.5)/numK)); bt.setAttribute('y',pad.t+12);
-      bt.setAttribute('text-anchor','middle'); bt.setAttribute('font-family','IBM Plex Mono');
-      bt.setAttribute('font-size','8'); bt.setAttribute('fill',`rgba(61,214,140,0.5)`);
+      bt.setAttribute('text-anchor','middle'); bt.setAttribute('font-family',MONO);
+      bt.setAttribute('font-size','8'); bt.setAttribute('fill','rgba(61,214,140,0.45)');
       bt.textContent=`W${k}`; els.push(bt);
     }
     const bt2=document.createElementNS(SVG_NS,'text');
     bt2.setAttribute('x',mx((numK-0.5)/numK)); bt2.setAttribute('y',pad.t+12);
-    bt2.setAttribute('text-anchor','middle'); bt2.setAttribute('font-family','IBM Plex Mono');
-    bt2.setAttribute('font-size','8'); bt2.setAttribute('fill',`rgba(61,214,140,0.5)`);
+    bt2.setAttribute('text-anchor','middle'); bt2.setAttribute('font-family',MONO);
+    bt2.setAttribute('font-size','8'); bt2.setAttribute('fill','rgba(61,214,140,0.45)');
     bt2.textContent=`W${numK}`; els.push(bt2);
-
     for(let k=0;k<numK;k++){
       const x0=k/numK,x1=(k+1)/numK;
       const bpts=DATA_PTS.filter(p=>p.x>=x0&&p.x<=x1+0.01);
@@ -1034,140 +1097,110 @@ function drawDecomp(svgId,isAIWN) {
       const sl=bpts.reduce((s,p)=>s+(p.x-avgX)*(p.y-avgY),0)/
                bpts.reduce((s,p)=>s+(p.x-avgX)**2,0.001);
       const ic2=avgY-sl*avgX;
-      els.push(el('line',{
-        x1:mx(x0),y1:my(sl*x0+ic2),x2:mx(x1),y2:my(sl*x1+ic2),
-        stroke:GRN,'stroke-width':2.5
-      }));
+      els.push(el('line',{x1:mx(x0),y1:my(sl*x0+ic2),x2:mx(x1),y2:my(sl*x1+ic2),stroke:GRN,'stroke-width':2.5}));
       if(k>0){
-        els.push(el('circle',{cx:mx(x0),cy:my(sl*x0+ic2),r:3.5,
-          fill:SURF,stroke:GRN,'stroke-width':1.5}));
+        els.push(el('circle',{cx:mx(x0),cy:my(sl*x0+ic2),r:3.5,fill:SURF,stroke:GRN,'stroke-width':1.5}));
       }
     }
     const lt=document.createElementNS(SVG_NS,'text');
     lt.setAttribute('x',pad.l+6); lt.setAttribute('y',pad.t+14);
-    lt.setAttribute('font-family','IBM Plex Mono'); lt.setAttribute('font-size','9');
-    lt.setAttribute('fill',GRN); lt.textContent=`W₁…W${numK} — each region optimal`;
-    els.push(lt);
+    lt.setAttribute('font-family',MONO); lt.setAttribute('font-size','9');
+    lt.setAttribute('fill',GRN); lt.textContent=`W₁…W${numK} — each region optimal`; els.push(lt);
   }
   setSVG(svgId,els);
 }
 
-// ─── 04: SMALLER NETWORK ──────────────────────
 function drawSmallerNet() {
   const W=760,H=160,els=[];
-
-  // MLP side
   const mlpX=20,mlpW=300;
-  els.push(el('rect',{x:mlpX,y:20,width:mlpW,height:100,rx:4,
-    fill:RED_D,stroke:RED,'stroke-width':1}));
-
-  // show one big W
-  const bw=260,bh=60,bx=mlpX+20,by=40;
+  els.push(el('rect',{x:mlpX,y:20,width:mlpW,height:100,rx:5,fill:RED_D,stroke:'rgba(255,107,91,0.25)','stroke-width':1}));
+  const bx=mlpX+20,by=38;
   for(let r=0;r<4;r++){
     for(let c=0;c<13;c++){
       const seed=(r*13+c*7)%100;
       els.push(el('rect',{
         x:bx+c*20,y:by+r*14,width:19,height:13,rx:1,
-        fill:`rgba(232,92,74,${0.15+seed/100*0.35})`,
-        stroke:`rgba(232,92,74,0.25)`,'stroke-width':0.5
+        fill:`rgba(255,107,91,${0.1+seed/100*0.3})`,
+        stroke:`rgba(255,107,91,0.2)`,'stroke-width':0.4
       }));
     }
   }
   const mt=document.createElementNS(SVG_NS,'text');
   mt.setAttribute('x',mlpX+mlpW/2); mt.setAttribute('y',14);
-  mt.setAttribute('text-anchor','middle'); mt.setAttribute('font-family','IBM Plex Mono');
+  mt.setAttribute('text-anchor','middle'); mt.setAttribute('font-family',MONO);
   mt.setAttribute('font-size','9'); mt.setAttribute('fill',RED);
   mt.textContent='MLP — one W[d×d], full capacity needed'; els.push(mt);
-
   const mf=document.createElementNS(SVG_NS,'text');
   mf.setAttribute('x',mlpX+mlpW/2); mf.setAttribute('y',136);
-  mf.setAttribute('text-anchor','middle'); mf.setAttribute('font-family','IBM Plex Mono');
+  mf.setAttribute('text-anchor','middle'); mf.setAttribute('font-family',MONO);
   mf.setAttribute('font-size','9'); mf.setAttribute('fill',MUTED);
   mf.textContent='must approximate ALL of input space'; els.push(mf);
-
-  // arrow
   const arrX=330;
   els.push(el('line',{x1:arrX,y1:80,x2:arrX+40,y2:80,stroke:MUTED,'stroke-width':2}));
   const at=document.createElementNS(SVG_NS,'text');
   at.setAttribute('x',arrX+20); at.setAttribute('y',74);
-  at.setAttribute('text-anchor','middle'); at.setAttribute('font-family','IBM Plex Mono');
-  at.setAttribute('font-size','8'); at.setAttribute('fill',GOLD);
+  at.setAttribute('text-anchor','middle'); at.setAttribute('font-family',MONO);
+  at.setAttribute('font-size','9'); at.setAttribute('fill',GOLD);
   at.textContent='AIWN'; els.push(at);
-
-  // AIWN side — K small buckets
   const aiwnX=390;
   const numBuckets=Math.min(K,6);
   const bucketW=Math.floor((W-aiwnX-10)/numBuckets)-4;
   const bucketH=60;
-
   const at2=document.createElementNS(SVG_NS,'text');
   at2.setAttribute('x',aiwnX+(numBuckets*(bucketW+4))/2); at2.setAttribute('y',14);
-  at2.setAttribute('text-anchor','middle'); at2.setAttribute('font-family','IBM Plex Mono');
+  at2.setAttribute('text-anchor','middle'); at2.setAttribute('font-family',MONO);
   at2.setAttribute('font-size','9'); at2.setAttribute('fill',GRN);
   at2.textContent=`AIWN — ${K} buckets, each covers 1/${K} of input space`; els.push(at2);
-
   for(let k=0;k<numBuckets;k++){
     const bkX=aiwnX+k*(bucketW+4);
     const isActive=k===Math.min(Math.floor(xIn*numBuckets),numBuckets-1);
-    els.push(el('rect',{x:bkX,y:30,width:bucketW,height:bucketH,rx:3,
-      fill:isActive?GRN_D:'#0d0d12',
-      stroke:isActive?GRN:BORDER,'stroke-width':isActive?1.5:0.8}));
-    // smaller grid inside
+    els.push(el('rect',{x:bkX,y:30,width:bucketW,height:bucketH,rx:4,
+      fill:isActive?'rgba(61,214,140,0.12)':'rgba(255,255,255,0.02)',
+      stroke:isActive?GRN:'rgba(255,255,255,0.08)','stroke-width':isActive?1.5:0.7}));
     const gc=4,gr=3,gcw=(bucketW-8)/gc,grh=(bucketH-16)/gr;
     for(let r=0;r<gr;r++){
       for(let c=0;c<gc;c++){
         const seed=(k*11+r*7+c*3)%100;
         els.push(el('rect',{
           x:bkX+4+c*gcw,y:34+r*grh,width:gcw-1,height:grh-1,rx:1,
-          fill:`rgba(61,214,140,${isActive?0.1+seed/100*0.35:0.02+seed/100*0.06})`,
-          stroke:`rgba(61,214,140,${isActive?0.3:0.08})`,'stroke-width':0.4
+          fill:`rgba(61,214,140,${isActive?0.08+seed/100*0.25:0.01+seed/100*0.04})`,
+          stroke:`rgba(61,214,140,${isActive?0.25:0.05})`,'stroke-width':0.4
         }));
       }
     }
     const bl=document.createElementNS(SVG_NS,'text');
     bl.setAttribute('x',bkX+bucketW/2); bl.setAttribute('y',100);
-    bl.setAttribute('text-anchor','middle'); bl.setAttribute('font-family','IBM Plex Mono');
-    bl.setAttribute('font-size','7'); bl.setAttribute('fill',isActive?GRN:MUTED);
+    bl.setAttribute('text-anchor','middle'); bl.setAttribute('font-family',MONO);
+    bl.setAttribute('font-size','7.5'); bl.setAttribute('fill',isActive?GRN:DIM);
     bl.textContent=`W${k+1}`; els.push(bl);
   }
-
   const af=document.createElementNS(SVG_NS,'text');
   af.setAttribute('x',aiwnX+(numBuckets*(bucketW+4))/2); af.setAttribute('y',136);
-  af.setAttribute('text-anchor','middle'); af.setAttribute('font-family','IBM Plex Mono');
+  af.setAttribute('text-anchor','middle'); af.setAttribute('font-family',MONO);
   af.setAttribute('font-size','9'); af.setAttribute('fill',MUTED);
   af.textContent=`each bucket: d/√${K} = d/${Math.sqrt(K).toFixed(1)}× smaller capacity needed`; els.push(af);
-
   setSVG('smallerNetSVG',els);
-
-  // update stat cards
   document.getElementById('kStatNum').textContent=K;
   document.getElementById('dStatNum').textContent=`d/√${K}`;
 }
 
-// ─── 05: NETWORK ──────────────────────────────
 function drawNetwork(svgId,isAIWN) {
   const layers=[4,5,4,3];
   const lx=[44,140,256,346];
   const H=220,nr=15,els=[];
   const activeK=Math.min(Math.floor(xIn*K),K-1);
-
   const positions=layers.map((n,li)=>
-    Array.from({length:n},(_,ni)=>({
-      x:lx[li],
-      y:H/2+(ni-(n-1)/2)*38
-    }))
+    Array.from({length:n},(_,ni)=>({x:lx[li],y:H/2+(ni-(n-1)/2)*38}))
   );
-
   for(let li=0;li<layers.length-1;li++){
-    positions[li].forEach((src,si)=>{
-      positions[li+1].forEach((dst,di)=>{
+    positions[li].forEach((src)=>{
+      positions[li+1].forEach((dst)=>{
         if(isAIWN&&li===1){
           els.push(el('line',{
             x1:src.x+nr,y1:src.y,x2:dst.x-nr,y2:dst.y,
-            stroke:`rgba(61,214,140,0.08)`,'stroke-width':0.8
+            stroke:'rgba(61,214,140,0.08)','stroke-width':0.8
           }));
-          // mini deck on each connection
-          const mx2=(src.x+dst.x)/2, my2=(src.y+dst.y)/2;
+          const mx2=(src.x+dst.x)/2,my2=(src.y+dst.y)/2;
           const angle=Math.atan2(dst.y-src.y,dst.x-src.x);
           const showK=Math.min(K,6);
           for(let k=showK-1;k>=0;k--){
@@ -1177,51 +1210,46 @@ function drawNetwork(svgId,isAIWN) {
               x:mx2-5+Math.cos(angle+Math.PI/2)*off,
               y:my2-3.5+Math.sin(angle+Math.PI/2)*off,
               width:7,height:5,rx:1,
-              fill:isA?'#0d2a1a':'#0f0f14',
-              stroke:isA?GRN:'#1e1e2a',
+              fill:isA?'rgba(61,214,140,0.2)':'rgba(255,255,255,0.03)',
+              stroke:isA?GRN:'rgba(255,255,255,0.08)',
               'stroke-width':isA?1:0.4
             }));
           }
         } else {
           els.push(el('line',{
             x1:src.x+nr,y1:src.y,x2:dst.x-nr,y2:dst.y,
-            stroke:isAIWN?`rgba(61,214,140,0.10)`:`rgba(232,92,74,0.14)`,
+            stroke:isAIWN?'rgba(61,214,140,0.09)':'rgba(255,107,91,0.12)',
             'stroke-width':0.8
           }));
         }
       });
     });
   }
-
-  positions.forEach((layer,li)=>{
+  positions.forEach((layer)=>{
     layer.forEach((node)=>{
-      const col=isAIWN?GRN:RED,colD=isAIWN?GRN_D:RED_D;
-      els.push(el('circle',{cx:node.x,cy:node.y,r:nr,fill:colD,stroke:col,'stroke-width':1.5}));
+      const col=isAIWN?GRN:RED;
+      const bgFill=isAIWN?'rgba(61,214,140,0.1)':'rgba(255,107,91,0.1)';
+      els.push(el('circle',{cx:node.x,cy:node.y,r:nr,fill:bgFill,stroke:col,'stroke-width':1.5}));
     });
   });
-
   ['Input','Hidden 1','Hidden 2','Output'].forEach((l,i)=>{
     const tl=document.createElementNS(SVG_NS,'text');
     tl.setAttribute('x',lx[i]); tl.setAttribute('y',H-6);
-    tl.setAttribute('text-anchor','middle'); tl.setAttribute('font-family','IBM Plex Mono');
+    tl.setAttribute('text-anchor','middle'); tl.setAttribute('font-family',MONO);
     tl.setAttribute('font-size','8'); tl.setAttribute('fill',MUTED); tl.textContent=l; els.push(tl);
   });
-
   const ann=document.createElementNS(SVG_NS,'text');
   ann.setAttribute('x',200); ann.setAttribute('y',14);
-  ann.setAttribute('text-anchor','middle'); ann.setAttribute('font-family','IBM Plex Mono');
-  ann.setAttribute('font-size','8');
-  ann.setAttribute('fill',isAIWN?GOLD:MUTED);
+  ann.setAttribute('text-anchor','middle'); ann.setAttribute('font-family',MONO);
+  ann.setAttribute('font-size','8'); ann.setAttribute('fill',isAIWN?GOLD:MUTED);
   ann.textContent=isAIWN?
     `each edge = deck of ${K} cards · x=${xIn.toFixed(2)} → card ${activeK+1} active`:
     `each edge = one fixed weight · full matrix read every pass`;
   els.push(ann);
-
   document.getElementById('netBadge').textContent=`~${Math.round(2/K*100)}% bandwidth`;
   setSVG(svgId,els);
 }
 
-// ─── 06: WEIGHT TABLE ─────────────────────────
 function drawTable(svgId,isAIWN) {
   const W=380,H=180,els=[];
   const rows=isAIWN?Math.min(K,14):10;
@@ -1231,36 +1259,31 @@ function drawTable(svgId,isAIWN) {
   const cw=(W-50)/cols;
   const ch=isAIWN?Math.min((H-36)/rows,16):(H-36)/rows;
   const sx=40,sy=24;
-
   const title=document.createElementNS(SVG_NS,'text');
   title.setAttribute('x',W/2); title.setAttribute('y',14);
-  title.setAttribute('text-anchor','middle'); title.setAttribute('font-family','IBM Plex Mono');
+  title.setAttribute('text-anchor','middle'); title.setAttribute('font-family',MONO);
   title.setAttribute('font-size','9'); title.setAttribute('fill',MUTED);
-  title.textContent=isAIWN?`${K} bucket rows — rows ${activeK+1} & ${lerpK+1} glowing`:`d × d — entire matrix`;
+  title.textContent=isAIWN?`${K} bucket rows — rows ${activeK+1} & ${lerpK+1} active`:`d × d — entire matrix`;
   els.push(title);
-
   for(let r=0;r<rows;r++){
     const isA=isAIWN&&r===activeK;
     const isL=isAIWN&&r===lerpK&&lerpK!==activeK;
-    const dark=isAIWN&&!isA&&!isL;
-
     if(isAIWN){
       const rl=document.createElementNS(SVG_NS,'text');
       rl.setAttribute('x',sx-4); rl.setAttribute('y',sy+r*ch+ch/2+3);
-      rl.setAttribute('text-anchor','end'); rl.setAttribute('font-family','IBM Plex Mono');
+      rl.setAttribute('text-anchor','end'); rl.setAttribute('font-family',MONO);
       rl.setAttribute('font-size','7');
-      rl.setAttribute('fill',isA?GRN:isL?`rgba(61,214,140,0.5)`:'#1e1e2a');
+      rl.setAttribute('fill',isA?GRN:isL?'rgba(61,214,140,0.45)':'rgba(255,255,255,0.1)');
       rl.textContent=`W${r+1}`; els.push(rl);
     }
-
     for(let c=0;c<cols;c++){
       const seed=(r*17+c*7)%100;
-      const v=0.2+seed/100*0.6;
+      const v=0.15+seed/100*0.5;
       let fill,stroke;
-      if(!isAIWN){ fill=`rgba(232,92,74,${v*0.4})`; stroke=`rgba(232,92,74,0.3)`; }
-      else if(isA){ fill=`rgba(61,214,140,${v*0.5})`; stroke=`rgba(61,214,140,0.6)`; }
-      else if(isL){ fill=`rgba(61,214,140,${v*0.18})`; stroke=`rgba(61,214,140,0.2)`; }
-      else { fill=`rgba(20,20,30,0.5)`; stroke='#161622'; }
+      if(!isAIWN){ fill=`rgba(255,107,91,${v*0.45})`; stroke=`rgba(255,107,91,0.25)`; }
+      else if(isA){ fill=`rgba(61,214,140,${v*0.45})`; stroke=`rgba(61,214,140,0.5)`; }
+      else if(isL){ fill=`rgba(61,214,140,${v*0.15})`; stroke=`rgba(61,214,140,0.18)`; }
+      else { fill='rgba(255,255,255,0.025)'; stroke='rgba(255,255,255,0.06)'; }
       els.push(el('rect',{
         x:sx+c*cw,y:sy+r*ch,width:cw-1,height:ch-1,rx:1.5,
         fill,stroke,'stroke-width':0.5
@@ -1269,26 +1292,25 @@ function drawTable(svgId,isAIWN) {
     if(isA||isL){
       els.push(el('rect',{
         x:sx-1,y:sy+r*ch-1,width:cols*cw+2,height:ch+1,rx:2,
-        fill:'none',stroke:isA?GRN:`rgba(61,214,140,0.35)`,
+        fill:'none',stroke:isA?GRN:'rgba(61,214,140,0.3)',
         'stroke-width':isA?1.5:1,
         'stroke-dasharray':isL?'4,2':'none'
       }));
     }
   }
-
   if(!isAIWN){
     els.push(el('rect',{x:sx-2,y:sy-2,width:cols*cw+4,height:rows*ch+4,rx:3,
       fill:'none',stroke:RED,'stroke-width':2}));
     const ft=document.createElementNS(SVG_NS,'text');
     ft.setAttribute('x',W/2); ft.setAttribute('y',H-4);
-    ft.setAttribute('text-anchor','middle'); ft.setAttribute('font-family','IBM Plex Mono');
+    ft.setAttribute('text-anchor','middle'); ft.setAttribute('font-family',MONO);
     ft.setAttribute('font-size','9'); ft.setAttribute('fill',RED);
     ft.textContent='all cells read every forward pass'; els.push(ft);
   } else {
     const pct=Math.round(2/K*100);
     const ft=document.createElementNS(SVG_NS,'text');
     ft.setAttribute('x',W/2); ft.setAttribute('y',H-4);
-    ft.setAttribute('text-anchor','middle'); ft.setAttribute('font-family','IBM Plex Mono');
+    ft.setAttribute('text-anchor','middle'); ft.setAttribute('font-family',MONO);
     ft.setAttribute('font-size','9'); ft.setAttribute('fill',GRN);
     ft.textContent=`${pct}% read · ${K-2} rows untouched in VRAM`; els.push(ft);
     document.getElementById('tableBadge').textContent=`rows ${activeK+1} & ${lerpK+1} of ${K}`;
@@ -1296,7 +1318,6 @@ function drawTable(svgId,isAIWN) {
   setSVG(svgId,els);
 }
 
-// ─── 07: INTERACTIVE ──────────────────────────
 function drawInteractive() {
   const W=1000,H=180,els=[];
   const activeK=Math.min(Math.floor(xIn*K),K-1);
@@ -1304,21 +1325,20 @@ function drawInteractive() {
   const lerpK=Math.min(activeK+1,K-1);
   const bw=(W-40)/K;
   const cw=Math.max(Math.min(bw-10,82),16);
-  const ch=130,ct=(H-ch)/2;
-
+  const ch=128,ct=(H-ch)/2;
   for(let k=0;k<K;k++){
     const cx=20+k*bw+bw/2;
     const isA=k===activeK,isL=k===lerpK&&lerpK!==activeK;
     if(isA||isL){
       els.push(el('rect',{
         x:cx-cw/2-4,y:ct-4,width:cw+8,height:ch+8,rx:8,
-        fill:isA?`rgba(61,214,140,0.08)`:`rgba(61,214,140,0.03)`,stroke:'none'
+        fill:isA?'rgba(61,214,140,0.06)':'rgba(61,214,140,0.02)',stroke:'none'
       }));
     }
     els.push(el('rect',{
       x:cx-cw/2,y:ct,width:cw,height:ch,rx:5,
-      fill:isA?'#0d2a1a':isL?'#0a1f14':'#0f0f14',
-      stroke:isA?GRN:isL?`rgba(61,214,140,0.45)`:BORDER,
+      fill:isA?'rgba(61,214,140,0.14)':isL?'rgba(61,214,140,0.06)':'rgba(255,255,255,0.03)',
+      stroke:isA?GRN:isL?'rgba(61,214,140,0.4)':'rgba(255,255,255,0.07)',
       'stroke-width':isA?2:isL?1.2:0.7,
       'stroke-dasharray':isL?'4,2':'none'
     }));
@@ -1326,45 +1346,38 @@ function drawInteractive() {
     const fs=Math.max(8,Math.min(13,cw*0.45));
     const cl=document.createElementNS(SVG_NS,'text');
     cl.setAttribute('x',cx); cl.setAttribute('y',ct+ch/2+4);
-    cl.setAttribute('text-anchor','middle'); cl.setAttribute('font-family','IBM Plex Mono');
+    cl.setAttribute('text-anchor','middle'); cl.setAttribute('font-family',MONO);
     cl.setAttribute('font-size',fs.toString());
-    cl.setAttribute('fill',isA?GRN:isL?`rgba(61,214,140,0.6)`:'#222235');
+    cl.setAttribute('fill',isA?GRN:isL?'rgba(61,214,140,0.55)':'rgba(255,255,255,0.12)');
     cl.textContent=`W${k+1}`; els.push(cl);
     if(isA||isL){
       const sub=document.createElementNS(SVG_NS,'text');
       sub.setAttribute('x',cx); sub.setAttribute('y',ct+ch-14);
-      sub.setAttribute('text-anchor','middle'); sub.setAttribute('font-family','IBM Plex Mono');
+      sub.setAttribute('text-anchor','middle'); sub.setAttribute('font-family',MONO);
       sub.setAttribute('font-size','8');
-      sub.setAttribute('fill',isA?GRN:`rgba(61,214,140,0.5)`);
+      sub.setAttribute('fill',isA?GRN:'rgba(61,214,140,0.5)');
       sub.textContent=isA?'PRIMARY':`lerp ${Math.round(frac*100)}%`; els.push(sub);
     }
-    // range label
     const rl=document.createElementNS(SVG_NS,'text');
     rl.setAttribute('x',cx); rl.setAttribute('y',H-3);
-    rl.setAttribute('text-anchor','middle'); rl.setAttribute('font-family','IBM Plex Mono');
-    rl.setAttribute('font-size','7'); rl.setAttribute('fill','#1e1e2a');
+    rl.setAttribute('text-anchor','middle'); rl.setAttribute('font-family',MONO);
+    rl.setAttribute('font-size','7'); rl.setAttribute('fill','rgba(255,255,255,0.1)');
     rl.textContent=`${(k/K).toFixed(2)}–${((k+1)/K).toFixed(2)}`; els.push(rl);
   }
-
-  // needle
   const nx=20+xIn*(W-40);
-  els.push(el('line',{x1:nx,y1:6,x2:nx,y2:H-16,
-    stroke:GOLD,'stroke-width':2,'stroke-dasharray':'5,3'}));
+  els.push(el('line',{x1:nx,y1:6,x2:nx,y2:H-16,stroke:GOLD,'stroke-width':2,'stroke-dasharray':'5,3'}));
   const nt=document.createElementNS(SVG_NS,'text');
   nt.setAttribute('x',nx); nt.setAttribute('y',6);
   nt.setAttribute('text-anchor',nx>W-60?'end':nx<60?'start':'middle');
-  nt.setAttribute('font-family','IBM Plex Mono'); nt.setAttribute('font-size','9');
+  nt.setAttribute('font-family',MONO); nt.setAttribute('font-size','9');
   nt.setAttribute('fill',GOLD); nt.textContent=`x = ${xIn.toFixed(2)}`; els.push(nt);
-
   setSVG('interactiveSVG',els);
-
   const pct=Math.round(2/K*100);
   document.getElementById('statusBar').textContent=
     `x=${xIn.toFixed(2)}  →  bucket ${activeK+1} of ${K}  →  W${activeK+1} (primary) + W${lerpK+1} (lerp ${Math.round(frac*100)}%)  →  ${pct}% of weights read  ·  ${100-pct}% untouched`;
   document.getElementById('interactiveBadge').textContent=`2 of ${K} = ${pct}%`;
 }
 
-// ─── DRAW ALL ─────────────────────────────────
 function drawAll() {
   drawMemHierarchy();
   drawMLPCost();
@@ -1381,7 +1394,6 @@ function drawAll() {
   drawInteractive();
 }
 
-// ─── SLIDERS ──────────────────────────────────
 document.getElementById('xSlider').addEventListener('input',e=>{
   xIn=e.target.value/100;
   document.getElementById('xVal').textContent=xIn.toFixed(2);
