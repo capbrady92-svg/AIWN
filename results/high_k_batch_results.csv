@@ -1,0 +1,2 @@
+fwd_std_ms,fwd_idx_ms,fwd_speedup,step_std_ms,step_idx_ms,step_speedup,flops_std,flops_idx,flop_ratio,tflops_std,tflops_idx,idx_faster_fwd,idx_faster_step,active_kb,B,d_std,d_idx,K,seq,N,fixed_dim,params_std,params_idx,ppl_ratio,val_mse_std,val_mse_idx,pareto_win
+217.30170003138483,1.6667500021867454,130.37450112271725,2313.5406000074,5.77519997023046,400.5992194093805,2097152,40,52428.8,5.059839051499357,0.012582282869347984,True,True,0.15625,128,512,20,512,4096,524288,False,1050624,10260,1.0753069779793143,0.013421902433037758,0.0860280841588974,False

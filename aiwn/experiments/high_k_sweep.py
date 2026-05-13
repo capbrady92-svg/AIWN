@@ -52,11 +52,11 @@ class HighKExperiment(BaseExperiment):
         self.args = args
 
         # High-K values — the interesting unknowns
-        self.K_VALUES    = [32, 64, 128, 256, 512]   # 32 as baseline for comparison
+        self.K_VALUES    = [512]   # 32 as baseline for comparison
         # Large d and batch — where AIWN dominates (above crossover regime)
-        self.D_MODELS    = [256, 384, 512]
-        self.BATCH_SIZES = [32, 64]
-        self.SEQ_LENS    = [128, 256, 4096]
+        self.D_MODELS    = [512]
+        self.BATCH_SIZES = [128]
+        self.SEQ_LENS    = [4096]
         self.N_BENCH     = args.n_bench
         self.N_WARM      = args.n_warm
         self.PPL_STEPS   = args.ppl_steps
