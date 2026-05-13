@@ -2,9 +2,9 @@
 
 **[→ View Interactive Explainer](https://capbrady92-svg.github.io/AIWN)** — sliders, visualisations, full walkthrough
 
-> **Latest result: 400.60× full training step speedup** — B=128, d=512, K=512, seq=4096 on RTX 5060 Laptop GPU.
-> Forward pass: **130.37×**. Standard layer: 2313ms. AIWN: 5.775ms.
-> A drop-in replacement for `nn.Linear` that is faster and sometimes more accurate.
+> **Best verified result: 15.17× forward speedup, 4.71× training step speedup** — B=32, d=512, K=512, seq=4096 on RTX 5060 Laptop GPU.
+> Conservative operating point: **4.40× forward, 1.39× step, 0.7% accuracy cost** at K=128, d=256, seq=4096.
+> A drop-in replacement for `nn.Linear` with a tunable speed/accuracy tradeoff.
 
 Experiment framework for benchmarking `IndexedLinear` against `StandardLinear`
 across speed, accuracy, and scaling behaviour.
@@ -22,6 +22,7 @@ across speed, accuracy, and scaling behaviour.
 - [Why Accuracy Holds and Sometimes Improves](#why-accuracy-holds-and-sometimes-improves)
 - [Key Results](#key-results)
 - [High-K Results](#high-k-results)
+- [Benchmark Methodology](#benchmark-methodology)
 - [Open Questions](#open-questions)
 - [Adding a New Experiment](#adding-a-new-experiment)
 
@@ -47,9 +48,6 @@ python run.py sweep --device cpu
 
 # High-K experiment (K=32–512, seq up to 4096)
 python run.py high_k
-
-# High-K with fixed dimensions (resolution hypothesis)
-python run.py high_k --fixed_dim
 
 # List all available experiments
 python run.py --help
@@ -88,19 +86,16 @@ AIWN/
 
 ## Terminology
 
-Understanding the sweep results requires knowing what these parameters mean:
-
 | Symbol | Full name | What it controls |
 |--------|-----------|-----------------|
-| **d** | d_model | The hidden dimension of the layer — e.g. d=512 means the layer takes 512-dimensional vectors as input. Larger d = more expressive model, more parameters, more compute. Common transformer sizes: GPT-2 small = 768, GPT-2 medium = 1024. |
-| **K** | Number of buckets | How many weight slices are in the indexed table. K=1 degenerates to a standard linear layer. K=16 means 16 distinct weight regimes across the input domain. Higher K = more expressiveness, fewer active FLOPs per forward pass. |
-| **B** | Batch size | Number of independent sequences processed simultaneously. Larger B = better GPU utilisation but more memory. In the sweep, B is the number of sequences; the actual token count seen by the layer is B × seq. |
-| **seq** | Sequence length | Number of tokens per sequence. The layer processes B × seq tokens per forward call. Longer sequences amortise kernel launch overhead across more work. |
-| **d_idx** | Indexed hidden dim | The actual dimension used by the indexed layer after equal-parameter scaling: `d_idx ≈ d / sqrt(K)`. At K=16, d_idx ≈ d/4. |
-| **ppl_ratio** | Perplexity ratio | `ppl_idx / ppl_std`. Below 1.0 means indexed is more accurate. At 1.0 means identical. Above 1.0 means standard is more accurate. |
-| **fwd_speedup** | Forward speedup | Wall-clock time for standard forward pass divided by indexed forward pass. 2.0x means indexed is twice as fast. |
+| **d** | d_model | The hidden dimension of the layer. Common transformer sizes: GPT-2 small = 768, GPT-2 medium = 1024. |
+| **K** | Number of buckets | How many weight slices are in the indexed table. Higher K = more expressiveness, fewer active FLOPs per forward pass. Sweet spot: K=128 for Pareto efficiency, K=512 for maximum speed. |
+| **B** | Batch size | Number of independent sequences processed simultaneously. |
+| **seq** | Sequence length | Number of tokens per sequence. The layer processes B × seq tokens per forward call. |
+| **d_idx** | Indexed hidden dim | The actual dimension used by the indexed layer after equal-parameter scaling: `d_idx ≈ d / sqrt(K)`. |
+| **ppl_ratio** | Perplexity ratio | `ppl_idx / ppl_std`. Below 1.0 means indexed is more accurate. |
+| **fwd_speedup** | Forward speedup | Wall-clock time ratio: standard / indexed. |
 | **step_speedup** | Step speedup | Same ratio for a full training step (forward + backward + gradient accumulation). |
-| **flop_ratio** | Theoretical FLOP ratio | `flops_std / flops_idx` — the predicted speedup from FLOP counting alone, before accounting for memory and kernel overhead. |
 
 ---
 
@@ -114,10 +109,8 @@ A standard linear layer computes:
 out = x @ W + b
 ```
 
-where `W` is a fixed weight matrix of shape `(in_d, out_d)`. The exact same
-weights are applied to every input, regardless of what that input actually is.
-This is efficient and well-understood, but fundamentally limited: it can only
-compute a single affine transformation of its input.
+where `W` is a fixed weight matrix applied identically to every input, regardless
+of what that input actually is.
 
 ### The indexed approach
 
@@ -130,42 +123,27 @@ table: shape (K, in_d, out_d)    ← K weight slices instead of 1
 For each forward pass:
 
   1. BUCKET  — divide input domain [-1, 1] into K equal bins.
-               for each input element x_i, find which bin it falls in:
-               bucket_i = floor((x_i + 1) / bin_width)
+               for each input element x_i, find which bin it falls in.
 
   2. INTERPOLATE — linearly interpolate between the two nearest bin entries
-                   for smoothness (avoids hard discontinuities at bin edges):
-                   W_eff[i] = lerp(table[bucket_i], table[bucket_i + 1], frac_i)
+                   for smoothness at bin boundaries.
 
-  3. ACCUMULATE — compute the output as a weighted sum:
-                  out_j = sum_i ( W_eff[i, j] * x_i )  +  b_j
+  3. ACCUMULATE — compute the output as a weighted sum over input dimensions.
 ```
 
-The result: **the weights the layer uses depend on what the input is**. A region
-of input space that needs a rotation gets one set of weights; a region that needs
-a scaling gets another. These are learned independently during training via
-standard backpropagation — the interpolation is differentiable, so gradients flow
-back through bucket assignments to the table entries.
+The result: **the weights the layer uses depend on what the input is**. Different
+regions of input space get different transformations, learned independently during
+training via standard backpropagation.
 
 ### The efficiency trick
 
 Despite the table having shape `(K, in_d, out_d)`, only **2 slices per input
-dimension** are ever read per forward pass — the two nearest bucket boundaries.
-This means:
+dimension** are ever read per forward pass. This means active FLOPs equal a
+standard linear layer of shape `(in_d, out_d)`, while total capacity is K times
+that of a standard linear layer.
 
-- **Active FLOPs** = same as a standard linear layer of shape `(in_d, out_d)`
-- **Total capacity** = K times that of a standard linear layer
-
-To keep parameter counts equal when comparing fairly, `in_d` and `out_d` are
-scaled down by `sqrt(K)` when building the indexed layer. This is the
-`indexed_dims()` function:
-
-```python
-d_idx = d / sqrt(K)          # e.g. d=256, K=16  →  d_idx=64
-```
-
-A K=16 indexed layer has the same number of parameters as a standard layer at
-the original dimension, but accesses 16× fewer weights per forward pass.
+To keep parameter counts comparable when benchmarking, `in_d` and `out_d` are
+scaled down by `sqrt(K)` via `indexed_dims()`.
 
 ---
 
@@ -175,246 +153,211 @@ Three effects compound to produce the observed speedups:
 
 ### 1. Fewer active FLOPs
 
-After equal-parameter scaling, `d_idx ≈ d / sqrt(K)`. The FLOP count for a
-matrix multiply is `2 * in_d * out_d`, so:
+After equal-parameter scaling, `d_idx ≈ d / sqrt(K)`. FLOP count scales as:
 
 ```
 FLOPs (standard) = 2 * d * d           = 2d²
 FLOPs (indexed)  = 2 * (d/√K) * (d/√K) = 2d² / K
 ```
 
-This is a theoretical `K×` FLOP reduction. At K=32 that is 32× fewer operations
-on paper. In practice the realised speedup is 40–70% of this theoretical maximum
-(more on why in the next section).
+Theoretical K× FLOP reduction. At K=128 that is 128× fewer operations on paper.
 
 ### 2. Memory bandwidth reduction
 
-At the matrix sizes typical in transformer FFN layers (d=256–1024), modern GPUs
-are often **memory-bandwidth bound** rather than compute-bound. The bottleneck is
-not running out of CUDA cores — it is getting weight data from GPU high-bandwidth
-memory (HBM) fast enough to keep those cores busy.
-
+At transformer FFN dimensions, modern GPUs are often **memory-bandwidth bound**.
 The indexed layer reads a working set of active weights that scales as `1/K`
-relative to the standard layer. At K=512, the GPU needs to fetch **512× less
-weight data** per forward pass — approximately 0.2% of the data the standard
-layer requires. This is the primary driver of the extreme speedups observed at
-large sequence lengths.
+relative to the standard layer. At K=512, the GPU fetches approximately 0.2% of
+the weight data the standard layer requires. This is the primary driver of
+speedup at large sequence lengths.
 
 ### 3. The Triton fused kernel
 
-A naive PyTorch implementation of the indexed operation would materialise several
-intermediate tensors (bucket indices, interpolation fractions, per-dimension
-weight slices), each requiring a round-trip to GPU memory. The Triton kernel
-fuses the entire operation — bucketing, interpolation, and accumulation — into a
-single GPU kernel, keeping the working set in L2 cache throughout and eliminating
-those intermediate allocations entirely.
+The Triton kernel fuses bucketing, interpolation, and accumulation into a single
+GPU kernel, keeping the working set in L2 cache and eliminating intermediate
+tensor allocations entirely.
 
 ---
 
 ## Why It's Sometimes Slower
 
-The indexed approach has real overheads that dominate in certain regimes.
-Understanding when indexed is slower is as important as knowing when it's faster.
-
 ### Kernel launch latency
 
-Every GPU kernel invocation has a fixed launch overhead of roughly 5–20
-microseconds, regardless of how much work it does. At small batch sizes and
-short sequences, the actual computation takes less time than this overhead —
-the GPU is sitting idle waiting for the next kernel to launch most of the time.
+At small batch sizes and short sequences, fixed kernel launch overhead dominates.
+The indexed layer launches a more complex kernel than the cuBLAS-backed
+`nn.Linear`. Below the crossover point, this overhead exceeds the savings.
 
-**In numbers:** at B=1, d=16, K=4, the indexed layer is consistently 0.5–0.6×
-the speed of standard (i.e. ~2× slower). At B=32, d=512, K=512, seq=4096, it is
-153× faster. The difference is entirely the ratio of useful work to launch overhead.
+### cuBLAS optimisation
 
-### cuBLAS is extremely optimised for standard GEMM
-
-`nn.Linear` dispatches to cuBLAS, which has been hand-tuned by NVIDIA engineers
-for years. It uses specialised tensor core instructions, autotuned tile sizes,
-and hardware-level optimisations specific to each GPU generation. The Triton
-kernel for IndexedLinear, while efficient, cannot match this for the operations
-where cuBLAS excels — specifically dense matrix multiplies at small-to-medium
-sizes where the indexed dimension reduction hasn't yet produced enough savings.
+`nn.Linear` dispatches to cuBLAS, hand-tuned by NVIDIA engineers with
+specialised tensor core instructions. The Triton kernel cannot match cuBLAS in
+regimes where the dimension reduction hasn't produced enough savings.
 
 ### The crossover point
 
-Based on the sweep results, indexed reliably beats standard when all three of
-these hold simultaneously:
+Indexed reliably beats standard when all three conditions hold simultaneously:
 
 | Condition | Why it matters |
 |-----------|---------------|
-| **d ≥ 256** | Large enough that memory bandwidth is the bottleneck, not kernel overhead |
-| **K ≥ 16** | Enough FLOP reduction to overcome the kernel complexity penalty |
-| **seq ≥ 128** | Enough tokens per call to amortise the fixed launch cost |
+| **d ≥ 256** | Large enough that memory bandwidth is the bottleneck |
+| **K ≥ 64** | Enough FLOP reduction to overcome kernel complexity |
+| **seq ≥ 256** | Enough tokens to amortise fixed launch cost |
 
-Below these thresholds — small models, small batches, short sequences — standard
-`nn.Linear` wins on wall-clock time despite doing more FLOPs, because cuBLAS
-is simply better at that regime than a custom Triton kernel.
+### Backward pass overhead
+
+At low K (K=32), the backward pass through the indexed kernel is slower than
+standard backprop, resulting in step speedup below 1.0. Step speedup becomes
+consistently positive at K≥64 and grows significantly at K≥128.
 
 ---
 
 ## Why Accuracy Holds and Sometimes Improves
 
-The most surprising finding: at K ≥ 16, `IndexedLinear` frequently matches or
-**beats** `StandardLinear` in perplexity despite the same parameter count and
-far less compute per forward pass. At high K (≥256) with long sequences, this
-effect becomes consistent and pronounced.
+`IndexedLinear` is a **piecewise-linear function approximator**. With K buckets,
+it learns K distinct linear transformations — one per region of input space —
+smoothly interpolated at boundaries. For nonlinear targets, the piecewise
+structure can fit local regions more accurately than a single global matrix
+must approximate everything at once.
 
-### The expressiveness argument
+At K≥16, the piecewise expressiveness consistently compensates for the reduced
+hidden dimension. The accuracy crossover happens reliably at K=16 in the
+synthetic benchmark.
 
-A standard linear layer, no matter how large, can only compute a single affine
-transformation. For nonlinear targets — which is almost every real task, since
-layers operate after activations and residual connections — it must approximate
-the nonlinearity with one fixed matrix. That approximation has irreducible error.
-
-`IndexedLinear` is a **piecewise-linear function approximator**. With K=32
-buckets, it can learn 32 distinct linear transformations, one per region of input
-space, smoothly interpolated at boundaries.
-
-### The resolution hypothesis
-
-At high K, each bucket covers a smaller region of input space and only needs to
-approximate a simpler local function. This means the required hidden dimension
-per bucket decreases faster than the sqrt(K) scaling assumes — the conventional
-wisdom about needing width for expressiveness breaks down when you have sufficient
-regional resolution. The empirical results validate this: at K=512, d=256,
-seq=4096, AIWN achieves ppl_ratio=0.9757 — **more accurate than standard linear
-with 1.6% of the parameters and 46× the speed.**
-
-### The analogy to Mixture of Experts
-
-This mechanism is qualitatively similar to a Mixture of Experts (MoE) layer —
-both increase representational capacity without increasing active compute. The
-key differences:
-
-- **IndexedLinear routing is continuous** — smooth bucket interpolation, not discrete softmax
-- **No load-balancing problem** — deterministic uniform routing, no expert collapse
-- **No routing network** — uses input values directly, zero additional parameters
-
-### Why this may generalise to real transformers
-
-The input to a transformer FFN layer is a post-layernorm residual stream.
-Layernorm constrains activations to a hypersphere with meaningful regional
-structure — tokens of similar semantic type, syntactic role, or position cluster
-together. Input-indexed weights can exploit that structure directly. This
-remains a hypothesis pending full transformer validation.
+**Note on accuracy methodology:** The accuracy benchmark trains each layer on a
+synthetic regression task (`Y = tanh(X @ W_true)`) at its own operating
+dimensions. The standard layer trains at full `(d_std, 4*d_std)` dimensions;
+the indexed layer trains at reduced `(d_idx, ff_idx)` dimensions. The ppl_ratio
+measures how well each architecture fits its version of the task. This is a
+directional signal, not a perfect apples-to-apples comparison. Transformer
+validation on real data remains the definitive accuracy test.
 
 ---
 
 ## Key Results
 
-All results from the sweep on RTX 5060 Laptop GPU (8.5GB VRAM), Triton 3.6.0,
-Python 3.13, PyTorch. Accuracy measured via synthetic regression benchmark
-`Y = tanh(X @ W_true)`, X ~ Uniform[-1, 1], 500 training steps.
+All results from corrected benchmarks on RTX 5060 Laptop GPU (8.5GB VRAM),
+Triton 3.6.0, Python 3.13, PyTorch. Speed benchmark compares
+`StandardLinear(d_std, 4*d_std)` vs `IndexedLinear(d_idx, ff_idx, K)` with
+approximately equal parameter counts via `indexed_dims()` equal-parameter scaling.
 
-### Original sweep — Pareto-dominant configs (faster AND ≈same accuracy)
+### Two operating points
+
+**Conservative — K=128: Pareto dominant configs (faster AND ≈same accuracy)**
 
 | B | d | K | seq | Fwd speedup | Step speedup | ppl_ratio |
 |---|---|---|-----|-------------|--------------|-----------|
-| 32 | 512 | 32 | 256 | **13.96×** | 7.56× | 1.002 |
-| 64 | 384 | 32 | 256 | **14.26×** | 7.81× | 1.007 |
-| 32 | 256 | 32 | 256 | 5.57× | 3.63× | 1.002 |
-| 32 | 256 | 16 | 256 | 3.68× | 2.29× | 1.003 |
-| 64 | 256 | 32 | 128 | 5.72× | 3.86× | 1.002 |
+| 32 | 256 | 128 | 256 | 3.26× | 1.62× | 1.007 |
+| 32 | 256 | 128 | 1024 | 4.58× | 1.93× | 1.007 |
+| 32 | 256 | 128 | 4096 | 4.40× | 1.39× | 1.007 |
+| 64 | 256 | 128 | 1024 | 4.55× | 1.82× | 1.007 |
+| 64 | 256 | 128 | 4096 | 4.36× | 1.41× | 1.007 |
 
-`ppl_ratio < 1.01` means perplexity is within 1% of standard — effectively identical.
+`ppl_ratio ≤ 1.01` = within 1% accuracy of standard. These configs are Pareto
+dominant — faster and essentially same accuracy.
+
+**Aggressive — K=512: Maximum speed with accuracy tradeoff**
+
+| B | d | K | seq | Fwd speedup | Step speedup | ppl_ratio |
+|---|---|---|-----|-------------|--------------|-----------|
+| 32 | 256 | 512 | 1024 | 8.45× | 5.51× | 1.012 |
+| 32 | 256 | 512 | 4096 | 11.41× | 5.60× | 1.012 |
+| 64 | 256 | 512 | 4096 | 10.63× | 4.27× | 1.012 |
+| 32 | 384 | 512 | 4096 | 10.84× | 3.89× | 1.066 |
+| 32 | 512 | 512 | 1024 | 16.27× | 6.18× | 1.083 |
+| 32 | 512 | 512 | 4096 | 15.17× | 4.71× | 1.083 |
+| 64 | 512 | 512 | 4096 | 15.40× | 4.51× | 1.083 |
 
 ### Cases where indexed is slower
 
-| B | d | K | seq | Fwd speedup | Why |
-|---|---|---|-----|-------------|-----|
-| 1 | 16 | 4 | 16 | 0.49× | Small B + small d = kernel overhead dominates |
-| 1 | 64 | 2 | 16 | 0.47× | K=2 is pathologically few buckets |
-| 4 | 32 | 4 | 48 | 0.61× | Below crossover on all three dimensions |
-| 8 | 128 | 4 | 16 | 0.62× | Short seq, moderate d — not enough tokens to amortise |
+| B | d | K | seq | Fwd speedup | Step speedup | Why |
+|---|---|---|-----|-------------|--------------|-----|
+| 32 | 256 | 32 | any | ~1.1× | 0.37–0.51× | K too low — backward pass overhead dominates |
+| 32 | 384 | 32 | any | ~1.5× | 0.48–0.59× | Same — K=32 below sweet spot |
+| 32 | 512 | 32 | any | ~1.4× | 0.50× | Same |
 
-### Accuracy across K values (d=128, B=32, seq=48)
+**Key finding:** K=32 consistently produces negative step speedup. K=64 is the
+crossover — step speedup reaches ~1.0× at K=64 and grows from there.
 
-| K | mse_std | mse_idx | ppl_ratio | Verdict |
-|---|---------|---------|-----------|---------|
-| 4 | 0.00513 | 0.19060 | 1.204 | Indexed significantly worse |
-| 8 | 0.00665 | 0.02283 | 1.016 | Close, small gap |
-| 16 | 0.00858 | 0.00764 | 0.999 | Indexed marginally better |
-| 32 | 0.00653 | 0.00892 | 1.002 | Essentially identical |
+### K scaling summary (d=256, B=32, seq=4096)
+
+| K | d_idx | Fwd speedup | Step speedup | ppl_ratio | Params ratio |
+|---|-------|-------------|--------------|-----------|--------------|
+| 32 | 44 | 1.09× | 0.37× | 1.003 | 0.94× |
+| 64 | 32 | 2.66× | 0.81× | 1.005 | 1.00× |
+| 128 | 20 | 4.40× | 1.39× | 1.007 | 0.78× |
+| 256 | 16 | 5.45× | 1.90× | 1.021 | 1.00× |
+| 512 | 8 | 11.41× | 5.60× | 1.012 | 0.50× |
 
 ---
 
 ## High-K Results
 
-Extended experiments testing K=64–512 at production-relevant sequence lengths
-(seq=256–4096). These results reveal a new scaling regime not captured in the
-original sweep.
+Extended experiments testing K=32–512 at production-relevant sequence lengths.
 
-### K scaling at seq=4096 — the production regime
+### K scaling at seq=4096 — full picture
 
-| B | d | K | seq | d_idx | Fwd speedup | Step speedup | ppl_ratio | Pareto |
-|---|---|---|-----|-------|-------------|--------------|-----------|--------|
-| **128** | **512** | **512** | **4096** | **20** | **130.37×** | **400.60×** | 1.074 | — |
-| 32 | 512 | 512 | 4096 | 20 | **153.63×** | **120.03×** | 1.074 | — |
-| 32 | 384 | 512 | 4096 | 16 | **99.00×** | **78.92×** | 1.04 | — |
-| 32 | 256 | 256 | 4096 | 16 | **47.51×** | — | 1.0067 | ★ |
-| 64 | 256 | 512 | 4096 | 8 | **46.03×** | — | **0.9757** | ★ |
-| 32 | 256 | 512 | 4096 | 8 | **44.75×** | — | **0.9757** | ★ |
-| 32 | 256 | 128 | 4096 | 20 | **44.48×** | — | 1.0017 | ★ |
-| 64 | 256 | 256 | 4096 | 16 | **40.54×** | — | 1.0067 | ★ |
+| B | d | K | seq | d_idx | Fwd speedup | Step speedup | ppl_ratio |
+|---|---|---|-----|-------|-------------|--------------|-----------|
+| 32 | 256 | 128 | 4096 | 20 | 4.40× | 1.39× | 1.007 |
+| 32 | 256 | 256 | 4096 | 16 | 5.45× | 1.92× | 1.021 |
+| 32 | 256 | 512 | 4096 | 8 | 11.41× | 5.60× | 1.012 |
+| 32 | 384 | 128 | 4096 | 32 | 5.45× | 1.65× | 1.020 |
+| 32 | 384 | 256 | 4096 | 24 | 7.58× | 2.36× | 1.043 |
+| 32 | 384 | 512 | 4096 | 16 | 10.84× | 3.89× | 1.066 |
+| 32 | 512 | 128 | 4096 | 44 | 3.78× | 1.25× | 1.041 |
+| 32 | 512 | 256 | 4096 | 32 | 9.18× | 2.74× | 1.067 |
+| 32 | 512 | 512 | 4096 | 20 | 15.17× | 4.71× | 1.083 |
 
-**35 total Pareto-dominant configurations** (fwd_speedup ≥ 3× AND ppl_ratio ≤ 1.01).
+### Practical guidance
 
-> The 400× step speedup result (B=128, d=512, K=512, seq=4096) represents a full training step —
-> forward pass + backward pass + gradient accumulation — in 5.775ms vs 2313ms for standard linear.
-> A training run costing $1,000,000 today would cost ~$2,500 with AIWN at this regime.
+Use **K=128** when accuracy matters — Pareto dominant at d=256, minimal accuracy
+cost, positive step speedup for training.
 
-### The resolution hypothesis validated
+Use **K=512** when inference speed is the priority and ~8% accuracy degradation
+is acceptable. Best results at d≥384, seq≥1024.
 
-At d=256, K=512, seq=4096 — AIWN uses **1.6% of the parameters** of the standard
-layer and achieves:
-- **46× forward speedup**
-- **ppl_ratio = 0.9757** — more accurate than standard linear
+Avoid **K=32** for training — negative step speedup across all configs tested.
+Acceptable for inference-only at large d and seq.
 
-This contradicts the conventional assumption that efficiency and expressiveness
-trade off against each other. At sufficient regional resolution (K≥256) and
-long sequences, AIWN is a strict Pareto improvement over standard linear layers
-on both axes simultaneously.
+---
 
-### K=32 vs K=512 head-to-head (B=64, seq=256)
+## Benchmark Methodology
 
-| d | K | Fwd speedup | ppl_ratio | Verdict |
-|---|---|-------------|-----------|---------|
-| 256 | 32 | 7.26× | 1.0022 | ★ Pareto |
-| 256 | 512 | 9.56× | **0.9757** | ★ Pareto — faster AND more accurate |
-| 384 | 32 | 12.78× | 1.0069 | ★ Pareto |
-| 384 | 512 | 35.23× | 1.0472 | Fast |
-| 512 | 32 | 19.26× | 1.0164 | Fast |
-| 512 | 512 | 44.38× | 1.0743 | Fast |
+**Speed benchmark:** `StandardLinear(d_std, 4*d_std)` vs
+`IndexedLinear(d_idx, ff_idx, K)` where `d_idx, ff_idx = indexed_dims(d_std, K)`.
+Parameter counts are approximately equal (within ~6–22% depending on n_heads
+rounding). Both layers are timed on GPU with full CUDA synchronisation,
+`n_warm=50` warmup iterations and `n_bench=200` timed iterations, median reported.
 
-### Why speedups explode at seq=4096
+**Accuracy benchmark:** Each layer trains independently on a synthetic regression
+task `Y = tanh(X @ W_true)`, X ~ Uniform[-1,1], 500 AdamW steps. Standard layer
+trains at `(d_std, 4*d_std)` dimensions; indexed layer trains at `(d_idx, ff_idx)`
+dimensions. `ppl_ratio = exp(val_mse_idx) / exp(val_mse_std)`. Because the two
+layers solve the task at different scales, ppl_ratio is a directional signal
+rather than a strict apples-to-apples comparison. Transformer validation on real
+data is the definitive accuracy test.
 
-At seq=4096 with B=32, N=131,072 tokens per forward call. The standard layer
-loads its full weight matrix from HBM continuously across all tokens — pure
-memory stall. At K=512, AIWN loads 2/512 of the weight table (~0.4% of the
-data), fits entirely in L2 cache, and completes the forward pass before the
-standard layer has fetched a fraction of its weights. The 153× result is the
-natural consequence of this bandwidth asymmetry at scale.
+**Parameter matching:** `indexed_dims()` targets equal parameters via
+`d_idx = d_std / sqrt(K)`, rounded to nearest `n_heads` multiple. At high K,
+rounding can produce ~50% parameter mismatch. Actual param counts are logged
+in the CSV output for every config.
 
 ---
 
 ## Open Questions
 
-- **Transformer validation** — Does the speedup and accuracy parity hold inside
-  a full transformer with residual connections and layernorm? The synthetic task
-  is controlled but not representative of real activation distributions.
-- **Layernorm domain** — Does the input domain assumption `[-1, 1]` hold after
-  layernorm in practice, or does it need to be adaptive or learned per-layer?
-- **K schedule** — Is there an optimal K schedule during training analogous to
-  learning rate warmup, where starting at low K and increasing it gradually
-  improves convergence stability?
-- **MoE comparison** — How does IndexedLinear compare against Mixture of Experts
-  at the same parameter budget?
-- **Ceiling** — The 153× result was measured at B=32. Larger batch sizes have
-  not yet been benchmarked at seq=4096. The true ceiling is unknown.
-- **Optimal K** — The high-K sweep suggests K=256–512 dominates at seq=4096,
-  but the optimal K for a given d, task, and sequence length is still an open
-  empirical question.
+- **Transformer validation** — Does the speedup hold inside a full transformer
+  with residual connections and layernorm? The synthetic task confirms the
+  mechanism works but real activation distributions may differ.
+- **Layernorm domain** — Post-layernorm activations are constrained to a
+  hypersphere, not uniform [-1,1]. Adaptive bucket boundaries may be needed.
+- **K schedule** — Is there an optimal K warmup schedule analogous to learning
+  rate warmup?
+- **Step speedup at K=32** — Why does the backward pass dominate at low K?
+  Understanding this may unlock improvements to the backward kernel.
+- **Transformer-scale dimensions** — All benchmarks use d≤512. GPT-2 uses
+  d=768–1600. Results at transformer-scale dimensions are not yet characterised.
+- **MoE comparison** — Head-to-head with Mixture of Experts at equal parameter
+  budget.
 
 ---
 
@@ -443,14 +386,12 @@ class MyExperiment(BaseExperiment):
         self.my_param = args.my_param
 
     def run(self) -> dict:
-        # use bench_layer() for timing, run_perplexity() for accuracy
         return {'results': [...]}
 
     def analyze(self, results):
         print("My findings:", ...)
 
     def plot(self, results, out_path):
-        # save figure to out_path
         ...
 ```
 

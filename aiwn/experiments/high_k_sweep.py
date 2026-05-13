@@ -52,11 +52,11 @@ class HighKExperiment(BaseExperiment):
         self.args = args
 
         # High-K values — the interesting unknowns
-        self.K_VALUES    = [512]   # 32 as baseline for comparison
+        self.K_VALUES    = [32, 64, 128, 256, 512] 
         # Large d and batch — where AIWN dominates (above crossover regime)
-        self.D_MODELS    = [512]
-        self.BATCH_SIZES = [128]
-        self.SEQ_LENS    = [4096]
+        self.D_MODELS    = [256, 384, 512]
+        self.BATCH_SIZES = [32, 64]
+        self.SEQ_LENS    = [256, 1024, 4096]
         self.N_BENCH     = args.n_bench
         self.N_WARM      = args.n_warm
         self.PPL_STEPS   = args.ppl_steps
@@ -107,7 +107,7 @@ class HighKExperiment(BaseExperiment):
 
             try:
                 layer_std = StandardLinear(d_std, 4 * d_std).to(self.device)
-                layer_idx = IndexedLinear(h_dn, d_idx, K).to(self.device)
+                layer_idx = IndexedLinear(d_idx, ff_idx, K).to(self.device)
             except Exception as e:
                 print(f"  SKIP (layer init) B={B} d={d_std} K={K}: {e}")
                 continue
@@ -156,6 +156,8 @@ class HighKExperiment(BaseExperiment):
             pm = ppl_cache[cache_key]
             pareto_win = (r['fwd_speedup'] >= 3.0 and pm['ppl_ratio'] <= 1.01)
 
+            print(f"layer_std: {layer_std.lin.weight.shape}")
+            print(f"layer_idx: {layer_idx.table.shape}")
             r.update({
                 'B': B, 'd_std': d_std, 'd_idx': d_idx, 'K': K, 'seq': seq,
                 'N': N, 'fixed_dim': self.fixed_dim,

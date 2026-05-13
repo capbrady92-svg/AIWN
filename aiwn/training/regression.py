@@ -108,8 +108,13 @@ def run_perplexity(
     Train matched Standard and Indexed layers on the synthetic regression task
     and return perplexity-style accuracy metrics.
 
-    Both layers use shape (d_idx, d_idx) derived from (d_std, K) via
-    indexed_dims_fn — no projection bridge, direct head-to-head comparison.
+    StandardLinear uses full (d_std, 4*d_std) dimensions — matching the speed
+    benchmark. IndexedLinear uses (d_idx, ff_idx) — equal-parameter scaling
+    via indexed_dims. Each layer trains on its own appropriately shaped dataset
+    since input dimensions differ.
+
+    ppl_ratio = ppl_idx / ppl_std. Both layers solve the same style of task
+    (tanh regression) at their respective scales. <1.0 means indexed is better.
 
     Returns
     -------
@@ -122,15 +127,22 @@ def run_perplexity(
         loss_curve_std list of (step, mse) checkpoints
         loss_curve_idx list of (step, mse) checkpoints
     """
-    d_idx, _, _ = indexed_dims_fn(d_std, 4 * d_std, K)
-    layer_std   = StandardLinear(d_idx, d_idx).to(device)
-    layer_idx   = IndexedLinear(d_idx, d_idx, K).to(device)
-    train_xy, val_xy = make_dataset(d_idx, d_idx, n_data, device)
+    d_idx, ff_idx, _ = indexed_dims_fn(d_std, 4 * d_std, K)
+
+    print(f"run_perplexity: d_std={d_std}, K={K}, d_idx={d_idx}, ff_idx={ff_idx}")
+    print(f"  layer_std: ({d_std}, {4*d_std}) — params: {d_std * 4 * d_std + 4 * d_std}")
+    print(f"  layer_idx: (K={K}, {d_idx}, {ff_idx}) — params: {K * d_idx * ff_idx + ff_idx}")
+
+    layer_std = StandardLinear(d_std, 4 * d_std).to(device)
+    layer_idx = IndexedLinear(d_idx, ff_idx, K).to(device)
+
+    train_std, val_std = make_dataset(d_std, 4 * d_std, n_data, device)
+    train_idx, val_idx = make_dataset(d_idx, ff_idx, n_data, device)
 
     val_mse_std, curve_std = train_and_eval(
-        layer_std, train_xy, val_xy, steps, lr, batch_size, ckpt_every, device)
+        layer_std, train_std, val_std, steps, lr, batch_size, ckpt_every, device)
     val_mse_idx, curve_idx = train_and_eval(
-        layer_idx, train_xy, val_xy, steps, lr, batch_size, ckpt_every, device)
+        layer_idx, train_idx, val_idx, steps, lr, batch_size, ckpt_every, device)
 
     ppl_std   = math.exp(min(val_mse_std, 20))
     ppl_idx   = math.exp(min(val_mse_idx, 20))

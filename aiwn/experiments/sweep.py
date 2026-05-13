@@ -101,7 +101,7 @@ class SweepExperiment(BaseExperiment):
 
             d_idx, ff_idx, h_dn = indexed_dims(d_std, 4 * d_std, K, self.N_HEADS)
             layer_std = StandardLinear(d_std, 4 * d_std).to(self.device)
-            layer_idx = IndexedLinear(h_dn, d_idx, K).to(self.device)
+            layer_idx = IndexedLinear(d_idx, ff_idx, K).to(self.device)
             N = B * seq
 
             # Perplexity: once per (d,K), cached for all B/seq combos
