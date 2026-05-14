@@ -143,24 +143,22 @@ class IndexedModel(nn.Module):
 
 class IndexedModelV2(nn.Module):
     """
-    Single IndexedLinearV2 layer — with learnable CDF normalization.
-    Maps input distribution to uniform[-1,1] before bucket indexing.
+    Single IndexedLinearV2 layer — Gaussian CDF normalization.
+    LayerNorm + erf maps input to uniform[-1,1] before bucket indexing.
+    No auxiliary loss needed.
     """
     def __init__(self, n_features: int = 54, n_classes: int = 7,
                  K: int = 32, entropy_weight: float = 0.01):
         super().__init__()
-        self.layer = IndexedLinearV2(n_features, n_classes, K,
-                                      unif_weight=entropy_weight)
+        # entropy_weight kept for API compatibility but no longer used
+        self.layer = IndexedLinearV2(n_features, n_classes, K)
         self.K = K
         n = sum(p.numel() for p in self.parameters())
         print(f"  IndexedModelV2: IndexedLinearV2({n_features}, {n_classes}, K={K}) | "
-              f"{n:,} params")
+              f"{n:,} params (Gaussian CDF norm)")
 
     def forward(self, x):
         return self.layer(x)
-
-    def uniformity_loss(self, x):
-        return self.layer.uniformity_loss(x)
 
 # ── Training ──────────────────────────────────────────────────────────────────
 
@@ -230,11 +228,7 @@ def train_and_eval(
 
             t0   = time.perf_counter()
             loss = F.cross_entropy(model(xb), yb)
-            # Add entropy regularization if model supports it
-            if hasattr(model, 'uniformity_loss'):
-                loss = loss + model.uniformity_loss(xb)
-            elif hasattr(model, 'entropy_loss'):
-                loss = loss + model.entropy_loss()
+            # No auxiliary loss for V2 (Gaussian CDF needs none)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

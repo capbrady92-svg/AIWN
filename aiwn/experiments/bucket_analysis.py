@@ -38,12 +38,11 @@ def get_bucket_counts(layer, x: torch.Tensor, K: int) -> torch.Tensor:
     Returns bucket_counts: (K,) tensor of hit counts
     """
     with torch.no_grad():
-        in_d = getattr(layer, 'in_d', None) or getattr(layer, 'in_dim')
-        if isinstance(layer, IndexedLinearV2):
-            xf = x.reshape(-1, in_d)
+        # Handle both IndexedLinear (in_dim) and IndexedLinearV2 (in_d)
+        in_d = getattr(layer, 'in_d', None) or getattr(layer, 'in_dim', None) or layer.linear.in_dim
+        xf = x.reshape(-1, in_d)
+        if isinstance(layer, IndexedLinearV2) and hasattr(layer, 'cdf'):
             xf = layer.cdf(xf)
-        else:
-            xf = x.reshape(-1, in_d)
 
         bw  = 2.0 / K
         bk  = ((xf + 1) / bw).long().clamp(0, K - 1)  # (N, in_d)
@@ -97,11 +96,8 @@ class BucketAnalysisExperiment(BaseExperiment):
         # ── IndexedLinearV2 (with CDF, untrained) ────────────────────────────
         if V2_AVAILABLE:
             layer_v2_untrained = IndexedLinearV2(
-                n_features, n_classes, args.K,
-                unif_weight=args.entropy_weight).to(device)
-            # Run a few forward passes to initialize running stats
-            for i in range(0, len(x), 1024):
-                _ = layer_v2_untrained(x[i:i+1024])
+                n_features, n_classes, args.K).to(device)
+            # No warmup needed - Gaussian CDF has no running stats
             v2_untrained_counts = get_bucket_counts(
                 layer_v2_untrained, x, args.K)
             results['indexed_v2_untrained'] = v2_untrained_counts.cpu()
@@ -109,8 +105,7 @@ class BucketAnalysisExperiment(BaseExperiment):
             # ── IndexedLinearV2 (with CDF, trained) ──────────────────────────
             print(f"\nTraining V2 layer for 10 epochs to learn CDF...")
             layer_v2_trained = IndexedLinearV2(
-                n_features, n_classes, args.K,
-                unif_weight=args.entropy_weight).to(device)
+                n_features, n_classes, args.K).to(device)
             optimizer = torch.optim.AdamW(
                 layer_v2_trained.parameters(), lr=1e-3)
             train_x, train_y = train_data
@@ -120,8 +115,7 @@ class BucketAnalysisExperiment(BaseExperiment):
                 for i in range(0, len(train_x), 1024):
                     idx  = perm[i:i+1024]
                     xb, yb = train_x[idx], train_y[idx]
-                    loss = (F.cross_entropy(layer_v2_trained(xb), yb)
-                            + layer_v2_trained.uniformity_loss(xb))
+                    loss = F.cross_entropy(layer_v2_trained(xb), yb)
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
