@@ -61,6 +61,8 @@ class BucketAnalysisExperiment(BaseExperiment):
         g.add_argument('--n_samples',    type=int,   default=10000,
                        help='Number of samples to analyze')
         g.add_argument('--entropy_weight', type=float, default=0.01)
+        g.add_argument('--dataset',      default='covertype',
+                       choices=['covertype', 'housing'])
         g.add_argument('--seed',         type=int,   default=42)
 
     def setup(self, args, device):
@@ -72,9 +74,16 @@ class BucketAnalysisExperiment(BaseExperiment):
         args   = self.args
         device = self.device
 
-        print(f"\nLoading Covertype...")
-        train_data, val_data, test_data, n_features, n_classes = load_covertype(
-            device=device, seed=args.seed)
+        if args.dataset == 'housing':
+            from aiwn.training.housing import load_housing
+            print(f"\nLoading California Housing...")
+            train_data, val_data, test_data, n_features, _, _ = load_housing(
+                device=device, seed=args.seed)
+            n_classes = 1
+        else:
+            print(f"\nLoading Covertype...")
+            train_data, val_data, test_data, n_features, n_classes = load_covertype(
+                device=device, seed=args.seed)
 
         # Use a subset for analysis
         x = train_data[0][:args.n_samples]
@@ -115,7 +124,11 @@ class BucketAnalysisExperiment(BaseExperiment):
                 for i in range(0, len(train_x), 1024):
                     idx  = perm[i:i+1024]
                     xb, yb = train_x[idx], train_y[idx]
-                    loss = F.cross_entropy(layer_v2_trained(xb), yb)
+                    pred = layer_v2_trained(xb)
+                    if yb.dtype == torch.float32:
+                        loss = F.mse_loss(pred.squeeze(-1), yb)
+                    else:
+                        loss = F.cross_entropy(pred, yb)
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()

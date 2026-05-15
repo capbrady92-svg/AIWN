@@ -1,23 +1,11 @@
 """
 IndexedLinear v2 — LayerNorm + Gaussian CDF normalization.
 
-Wraps the original IndexedLinear (with Triton kernel) with a
-GaussianCDFNorm that maps any input distribution to uniform[-1, 1].
+Wraps the original IndexedLinear with a GaussianCDFNorm that maps
+any input distribution to uniform[-1, 1].
 
-Architecture:
-    GaussianCDFNorm(in_d)     — LayerNorm + erf → uniform[-1, 1]
-    IndexedLinear(in_d, out_d, K)  — original Triton-accelerated layer
-
-This is the correct and efficient V2:
-  - Triton kernel from V1 handles the actual computation
-  - GaussianCDFNorm adds ~0 overhead (LayerNorm + erf are elementwise)
-  - No auxiliary loss, no learnable knots, no running stats
-  - 90%+ bucket entropy from epoch 1
-
-From literature (arxiv 2507.13393):
-  "Applying LayerNorm before the CDF transform makes inputs both
-   variance-equalized and support-bounded, exactly matching the
-   orthonormality assumptions of the basis functions."
+Falls back to eager path automatically if Triton is unavailable.
+Failure is detected ONCE at init, not retried every forward call.
 """
 
 import math
@@ -25,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from aiwn.layers.indexed_linear import IndexedLinear
+from aiwn.layers.indexed_linear import IndexedLinear, TRITON_OK
 
 
 class GaussianCDFNorm(nn.Module):
@@ -53,8 +41,8 @@ class IndexedLinearV2(nn.Module):
     """
     IndexedLinear with Gaussian CDF normalization.
 
-    Drop-in replacement for IndexedLinear that automatically normalizes
-    inputs to uniform[-1, 1] before bucket indexing.
+    Detects Triton availability ONCE at init via a test forward pass.
+    Uses eager path permanently if Triton fails — no per-call overhead.
 
     Parameters
     ----------
@@ -71,16 +59,32 @@ class IndexedLinearV2(nn.Module):
         self.cdf    = GaussianCDFNorm(in_d)
         self.linear = IndexedLinear(in_d, out_d, K)
 
+        # Detect Triton availability ONCE with a test forward pass
+        self._use_triton = False
+        if TRITON_OK:
+            try:
+                test_x = torch.zeros(1, in_d, device='cuda' 
+                    if torch.cuda.is_available() else 'cpu')
+                self.linear(test_x)
+                self._use_triton = True
+            except Exception:
+                self._use_triton = False
+
         n_cdf    = sum(p.numel() for p in self.cdf.parameters())
         n_linear = self.linear.table.numel() + self.linear.bias.numel()
+        backend  = "Triton" if self._use_triton else "eager"
         print(f"  IndexedLinearV2: ({in_d}, {out_d}, K={K}) | "
-              f"cdf={n_cdf} + linear={n_linear:,} = {n_cdf+n_linear:,} params")
+              f"cdf={n_cdf} + linear={n_linear:,} = {n_cdf+n_linear:,} params "
+              f"| backend={backend}")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         shape = x.shape
         xf    = x.reshape(-1, self.in_d)
         xf    = self.cdf(xf)                    # → uniform[-1, 1]
-        out   = self.linear(xf)                  # Triton kernel
+        if self._use_triton:
+            out = self.linear(xf)               # Triton kernel
+        else:
+            out = self.linear._eager(xf)        # pure PyTorch
         return out.reshape(*shape[:-1], self.out_d)
 
     def flops(self) -> int:
