@@ -65,16 +65,26 @@ def get_batch(data, block_size, batch_size):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def get_d_idx(n_embd: int, K: int, n_head: int) -> int:
+def get_d_idx(n_embd: int, K: int, n_head: int) -> tuple:
     """
     d_idx = n_embd/sqrt(K) rounded to nearest power-of-2 divisible by n_head.
+    ff_idx = 4*n_embd/K rounded to nearest power-of-2.
+    Each of K regimes handles 1/K of the FFN capacity.
     Power-of-2 required for Triton kernel safety.
     """
-    raw = int(n_embd / math.sqrt(K))
-    p2  = 1 << (raw.bit_length() - 1)
-    while p2 % n_head != 0 and p2 > n_head:
-        p2 >>= 1
-    return max(n_head, p2)
+    # d_idx — embedding dim per regime
+    raw_d = int(n_embd / math.sqrt(K))
+    p2_d  = 1 << (raw_d.bit_length() - 1)
+    while p2_d % n_head != 0 and p2_d > n_head:
+        p2_d >>= 1
+    d_idx = max(n_head, p2_d)
+
+    # ff_idx — FFN hidden dim per regime = 4*n_embd/K
+    raw_ff = max(4, (4 * n_embd) // K)
+    p2_ff  = 1 << (raw_ff.bit_length() - 1)
+    ff_idx = max(4, p2_ff)
+
+    return d_idx, ff_idx
 
 
 # ── Bucket tracker ────────────────────────────────────────────────────────────
@@ -260,19 +270,19 @@ class IndexedAttention(nn.Module):
 
 class IndexedFFN(nn.Module):
     """
-    FFN using IndexedLinear at d_idx.
-    GaussianCDF maps post-layernorm activations to uniform[-1,1].
-    up: (d_idx, 4*d_idx) — power-of-2 ✓
-    down: (4*d_idx, d_idx) — power-of-2 ✓
+    FFN using IndexedLinear at d_idx with ff_idx hidden dim.
+    ff_idx = 4*n_embd/K — each of K regimes handles 1/K of FFN capacity.
+    All dims power-of-2 for Triton safety.
     """
-    def __init__(self, d_idx, K, dropout=0.1):
+    def __init__(self, d_idx, ff_idx, K, dropout=0.1):
         super().__init__()
-        self.d_idx = d_idx
-        self.cdf   = GaussianCDFNorm(d_idx)
-        self.up    = IndexedLinear(d_idx, 4*d_idx, K)
-        self.down  = IndexedLinear(4*d_idx, d_idx, K)
-        self.act   = nn.GELU()
-        self.drop  = nn.Dropout(dropout)
+        self.d_idx  = d_idx
+        self.ff_idx = ff_idx
+        self.cdf    = GaussianCDFNorm(d_idx)
+        self.up     = IndexedLinear(d_idx, ff_idx, K)
+        self.down   = IndexedLinear(ff_idx, d_idx, K)
+        self.act    = nn.GELU()
+        self.drop   = nn.Dropout(dropout)
 
     def forward(self, x):
         shape = x.shape
@@ -282,12 +292,12 @@ class IndexedFFN(nn.Module):
         return self.drop(h.reshape(shape))
 
 class IndexedBlock(nn.Module):
-    def __init__(self, d_idx, n_head, block_size, K, dropout=0.1):
+    def __init__(self, d_idx, ff_idx, n_head, block_size, K, dropout=0.1):
         super().__init__()
         self.ln1  = nn.LayerNorm(d_idx)
         self.ln2  = nn.LayerNorm(d_idx)
         self.attn = IndexedAttention(d_idx, n_head, block_size, K, dropout)
-        self.ffn  = IndexedFFN(d_idx, K, dropout)
+        self.ffn  = IndexedFFN(d_idx, ff_idx, K, dropout)
 
     def forward(self, x):
         x = x + self.attn(self.ln1(x))
@@ -305,14 +315,15 @@ class IndexedGPT(nn.Module):
         self.block_size = block_size
         self.ffn_type   = "indexed"
         self.K          = K
-        d_idx           = get_d_idx(n_embd, K, n_head)
+        d_idx, ff_idx   = get_d_idx(n_embd, K, n_head)
         self.d_idx      = d_idx
+        self.ff_idx     = ff_idx
 
         self.transformer = nn.ModuleDict({
             "wte":  nn.Embedding(vocab_size, d_idx),
             "wpe":  nn.Embedding(block_size, d_idx),
             "drop": nn.Dropout(dropout),
-            "h":    nn.ModuleList([IndexedBlock(d_idx, n_head,
+            "h":    nn.ModuleList([IndexedBlock(d_idx, ff_idx, n_head,
                                    block_size, K, dropout)
                                    for _ in range(n_layer)]),
             "ln_f": nn.LayerNorm(d_idx),
@@ -325,7 +336,7 @@ class IndexedGPT(nn.Module):
                 nn.init.normal_(m.table, std=0.01)
                 nn.init.zeros_(m.bias)
         n = sum(p.numel() for p in self.parameters())
-        print(f"  IndexedGPT: n_embd={n_embd}→d_idx={d_idx} K={K} | "
+        print(f"  IndexedGPT: n_embd={n_embd}→d_idx={d_idx} ff_idx={ff_idx} K={K} | "
               f"{n/1e6:.2f}M params | Triton={TRITON_OK}")
 
     def _init_weights(self):
@@ -413,23 +424,33 @@ def train(model, train_data, val_data, args, device, label):
         if step == args.max_iters:
             break
 
-        t0 = time.perf_counter()
         x, y  = get_batch(train_data, args.block_size, args.batch_size)
+
+        t0 = time.perf_counter()
         _, loss = model(x, y)
+        if device.type == "cuda": torch.cuda.synchronize()
+        t_fwd = (time.perf_counter() - t0) * 1000
+
         if torch.isnan(loss) or torch.isinf(loss):
             print(f"    [skip NaN step {step}]")
             step_times.append(0.0)
             continue
+
         optimizer.zero_grad()
+        t0 = time.perf_counter()
         loss.backward()
+        if device.type == "cuda": torch.cuda.synchronize()
+        t_bwd = (time.perf_counter() - t0) * 1000
+
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
-        if device.type == "cuda":
-            torch.cuda.synchronize()
-        elapsed = (time.perf_counter() - t0) * 1000
+        if device.type == "cuda": torch.cuda.synchronize()
+
+        elapsed = t_fwd + t_bwd
         step_times.append(elapsed)
-        if len(step_times) <= 3 or len(step_times) % 100 == 0:
-            print(f"    [step {len(step_times):4d}] {elapsed:.1f}ms "
+        if len(step_times) <= 5 or len(step_times) % 100 == 0:
+            print(f"    [step {len(step_times):4d}] fwd={t_fwd:.1f}ms "
+                  f"bwd={t_bwd:.1f}ms total={elapsed:.1f}ms "
                   f"loss={loss.item():.4f}")
 
     if tracker: tracker.remove()
@@ -475,7 +496,7 @@ def main():
         print(f"GPU   : {torch.cuda.get_device_name(0)}")
     print(f"Triton: {'available' if TRITON_OK else 'not available'}")
 
-    d_idx = get_d_idx(args.n_embd, args.K, args.n_head)
+    d_idx, ff_idx = get_d_idx(args.n_embd, args.K, args.n_head)
     print(f"\nK={args.K}: n_embd={args.n_embd} → d_idx={d_idx}")
     print(f"Standard params ≈ Indexed params (equal budget, K weight regimes)")
 
@@ -498,7 +519,7 @@ def main():
         if device.type == "cuda": torch.cuda.empty_cache()
 
     if args.model_type in ("indexed", "both") and AIWN_AVAILABLE:
-        print(f"\nBuilding Indexed GPT (K={args.K}, d_idx={d_idx})...")
+        print(f"\nBuilding Indexed GPT (K={args.K}, d_idx={d_idx}, ff_idx={ff_idx})...")
         model_idx = IndexedGPT(vocab_size, args.block_size, args.n_layer,
                                args.n_head, args.n_embd, args.K,
                                args.dropout).to(device)
