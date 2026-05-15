@@ -1,25 +1,17 @@
 """
 Transformer Validation — Equal-Parameter AIWN GPT vs Standard GPT.
 
-The correct equal-parameter comparison:
-  Standard GPT:  n_embd=256, standard nn.Linear throughout
-  Indexed GPT:   n_embd=d_idx=n_embd/sqrt(K), IndexedLinear throughout
+Standard GPT:  n_embd=256, nn.Linear throughout
+Indexed GPT:   d_idx=n_embd/sqrt(K) power-of-2, IndexedLinear throughout
 
-Both models have approximately equal total parameter counts.
-The indexed model is smaller in every dimension but has K weight regimes
-instead of 1 — same budget, more expressiveness per parameter.
-
-No proj_in/proj_out — the entire indexed model operates at d_idx.
-No dimension mismatch — embedding, attention, FFN all at d_idx.
-
-Bucket entropy tracked live to verify Gaussian CDF is working
-in the actual transformer activation distribution.
+Equal parameter counts. No proj_in/proj_out. Full Triton throughout.
+Separate Q/K/V projections so all dims are power-of-2 safe.
+Bucket entropy tracked via forward hooks.
 
 Usage:
-    python transformer_validation.py --K 32
-    python transformer_validation.py --K 128
-    python transformer_validation.py --K 32 --n_embd 256 --max_iters 3000
-    python transformer_validation.py --model_type indexed
+    python transformer_validation.py --K 16 --model_type indexed
+    python transformer_validation.py --K 16 --max_iters 3000
+    python transformer_validation.py --K 16 --model_type both
 """
 
 import argparse
@@ -34,7 +26,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 try:
-    from aiwn.layers import IndexedLinear, indexed_dims
+    from aiwn.layers import IndexedLinear
     from aiwn.layers.indexed_linear import TRITON_OK
     from aiwn.layers.indexed_linear_v2 import GaussianCDFNorm
     AIWN_AVAILABLE = True
@@ -71,12 +63,25 @@ def get_batch(data, block_size, batch_size):
     return x, y
 
 
-# ── Bucket entropy tracker ────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def get_d_idx(n_embd: int, K: int, n_head: int) -> int:
+    """
+    d_idx = n_embd/sqrt(K) rounded to nearest power-of-2 divisible by n_head.
+    Power-of-2 required for Triton kernel safety.
+    """
+    raw = int(n_embd / math.sqrt(K))
+    p2  = 1 << (raw.bit_length() - 1)
+    while p2 % n_head != 0 and p2 > n_head:
+        p2 >>= 1
+    return max(n_head, p2)
+
+
+# ── Bucket tracker ────────────────────────────────────────────────────────────
 
 class BucketTracker:
-    """Tracks bucket hit distribution via forward hooks on IndexedLinear."""
-    def __init__(self, K: int):
-        self.K       = K
+    def __init__(self, K):
+        self.K = K
         self.counts  = torch.zeros(K)
         self.handles = []
 
@@ -85,56 +90,30 @@ class BucketTracker:
 
     def register(self, layer):
         def hook(module, args):
-            # Only track during eval — no overhead during training
             if not module.training:
-                x = args[0]
-                if x.is_cuda:
-                    xf  = x.reshape(-1, module.in_dim).detach().cpu()
-                    bw  = 2.0 / self.K
-                    bk  = ((xf + 1) / bw).long().clamp(0, self.K - 1)
-                    self.counts += torch.bincount(
-                        bk.reshape(-1), minlength=self.K).float()
+                xf  = args[0].reshape(-1, module.in_dim).detach().cpu()
+                bw  = 2.0 / self.K
+                bk  = ((xf + 1) / bw).long().clamp(0, self.K - 1)
+                self.counts += torch.bincount(bk.reshape(-1),
+                                              minlength=self.K).float()
         self.handles.append(layer.register_forward_pre_hook(hook))
 
-    def entropy(self) -> float:
+    def entropy(self):
         total = self.counts.sum()
-        if total == 0:
-            return 0.0
+        if total == 0: return 0.0
         p = self.counts / total
         return -(p * (p + 1e-10).log()).sum().item() / math.log(self.K) * 100
 
     def remove(self):
-        for h in self.handles:
-            h.remove()
+        for h in self.handles: h.remove()
         self.handles.clear()
 
 
-# ── Indexed dimensions helper ─────────────────────────────────────────────────
-
-def get_indexed_embd(n_embd: int, K: int, n_head: int) -> int:
-    """
-    Compute d_idx such that indexed model has equal params to standard.
-    d_idx = n_embd / sqrt(K), rounded DOWN to nearest power of 2.
-    Power-of-2 dimensions are required for the Triton kernel to work
-    safely — non-power-of-2 OUT causes illegal memory access on CUDA.
-    Also ensures d_idx is divisible by n_head for attention.
-    """
-    s     = math.sqrt(K)
-    raw   = int(n_embd / s)
-    # Round down to nearest power of 2
-    p2    = 1 << (raw.bit_length() - 1)
-    # Ensure divisible by n_head
-    while p2 % n_head != 0 and p2 > n_head:
-        p2 = p2 >> 1
-    return max(n_head, p2)
-
-
-# ── Standard GPT components ───────────────────────────────────────────────────
+# ── Standard GPT ──────────────────────────────────────────────────────────────
 
 class StandardAttention(nn.Module):
     def __init__(self, n_embd, n_head, block_size, dropout=0.1):
         super().__init__()
-        assert n_embd % n_head == 0
         self.n_head = n_head
         self.n_embd = n_embd
         self.c_attn     = nn.Linear(n_embd, 3 * n_embd)
@@ -142,36 +121,28 @@ class StandardAttention(nn.Module):
         self.attn_drop  = nn.Dropout(dropout)
         self.resid_drop = nn.Dropout(dropout)
         self.register_buffer("bias", torch.tril(
-            torch.ones(block_size, block_size)
-        ).view(1, 1, block_size, block_size))
+            torch.ones(block_size, block_size)).view(1,1,block_size,block_size))
 
     def forward(self, x):
         B, T, C = x.shape
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-        att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
-        att = F.softmax(att, dim=-1)
-        att = self.attn_drop(att)
-        y   = (att @ v).transpose(1, 2).contiguous().view(B, T, C)
+        k = k.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
+        q = q.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
+        v = v.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
+        att = (q @ k.transpose(-2,-1)) * (1.0/math.sqrt(k.size(-1)))
+        att = att.masked_fill(self.bias[:,:,:T,:T]==0, float('-inf'))
+        att = self.attn_drop(F.softmax(att, dim=-1))
+        y   = (att @ v).transpose(1,2).contiguous().view(B,T,C)
         return self.resid_drop(self.c_proj(y))
-
 
 class StandardFFN(nn.Module):
     def __init__(self, n_embd, dropout=0.1):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(n_embd, 4 * n_embd),
-            nn.GELU(),
-            nn.Linear(4 * n_embd, n_embd),
-            nn.Dropout(dropout),
-        )
+            nn.Linear(n_embd, 4*n_embd), nn.GELU(),
+            nn.Linear(4*n_embd, n_embd), nn.Dropout(dropout))
 
-    def forward(self, x):
-        return self.net(x)
-
+    def forward(self, x): return self.net(x)
 
 class StandardBlock(nn.Module):
     def __init__(self, n_embd, n_head, block_size, dropout=0.1):
@@ -186,104 +157,19 @@ class StandardBlock(nn.Module):
         x = x + self.ffn(self.ln2(x))
         return x
 
-
-# ── Indexed GPT components ────────────────────────────────────────────────────
-
-class IndexedAttention(nn.Module):
-    """
-    Attention using IndexedLinear for Q/K/V and output projections.
-    Operates entirely at d_idx — no dimension mismatch.
-    """
-    def __init__(self, d_idx, n_head, block_size, K, dropout=0.1):
-        super().__init__()
-        assert d_idx % n_head == 0
-        self.n_head = n_head
-        self.d_idx  = d_idx
-        self.K      = K
-
-        # Indexed Q/K/V and output projections
-        # Note: no CDF normalization in attention — would distort scores
-        self.c_attn     = IndexedLinear(d_idx, 3 * d_idx, K)
-        self.c_proj     = IndexedLinear(d_idx, d_idx, K)
-        self.attn_drop  = nn.Dropout(dropout)
-        self.resid_drop = nn.Dropout(dropout)
-        self.register_buffer("bias", torch.tril(
-            torch.ones(block_size, block_size)
-        ).view(1, 1, block_size, block_size))
-
-    def forward(self, x):
-        B, T, C = x.shape
-        h = x.reshape(B * T, C)
-        # Use eager for attention — Triton crashes on non-power-of-2 OUT
-        qkv = self.c_attn._eager(h).reshape(B, T, 3 * self.d_idx)
-        q, k, v = qkv.split(self.d_idx, dim=2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-        att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
-        att = F.softmax(att, dim=-1)
-        att = self.attn_drop(att)
-        y   = (att @ v).transpose(1, 2).contiguous().view(B, T, C)
-        h   = self.c_proj._eager(y.reshape(B * T, C))
-        return self.resid_drop(h.reshape(B, T, C))
-
-
-class IndexedFFN(nn.Module):
-    """
-    FFN using IndexedLinear at d_idx — equal params to standard FFN at n_embd.
-    Gaussian CDF normalizes post-layernorm activations to uniform[-1,1].
-    """
-    def __init__(self, d_idx, K, dropout=0.1):
-        super().__init__()
-        self.d_idx = d_idx
-        self.K     = K
-        self.cdf   = GaussianCDFNorm(d_idx)
-        self.up    = IndexedLinear(d_idx, 4 * d_idx, K)
-        self.down  = IndexedLinear(4 * d_idx, d_idx, K)
-        self.act   = nn.GELU()
-        self.drop  = nn.Dropout(dropout)
-
-    def forward(self, x):
-        shape = x.shape
-        h = x.reshape(-1, self.d_idx)
-        h = self.cdf(h)
-        # Use Triton for FFN — dims are power-of-2 safe
-        h = self.act(self.up(h))
-        h = self.down(h)
-        return self.drop(h.reshape(shape))
-
-
-class IndexedBlock(nn.Module):
-    def __init__(self, d_idx, n_head, block_size, K, dropout=0.1):
-        super().__init__()
-        self.ln1  = nn.LayerNorm(d_idx)
-        self.ln2  = nn.LayerNorm(d_idx)
-        self.attn = IndexedAttention(d_idx, n_head, block_size, K, dropout)
-        self.ffn  = IndexedFFN(d_idx, K, dropout)
-
-    def forward(self, x):
-        x = x + self.attn(self.ln1(x))
-        x = x + self.ffn(self.ln2(x))
-        return x
-
-
-# ── GPT models ────────────────────────────────────────────────────────────────
-
 class StandardGPT(nn.Module):
-    def __init__(self, vocab_size, block_size, n_layer,
-                 n_head, n_embd, dropout=0.1):
+    def __init__(self, vocab_size, block_size, n_layer, n_head,
+                 n_embd, dropout=0.1):
         super().__init__()
-        self.block_size  = block_size
-        self.ffn_type    = "standard"
+        self.block_size = block_size
+        self.ffn_type   = "standard"
         self.transformer = nn.ModuleDict({
             "wte":  nn.Embedding(vocab_size, n_embd),
             "wpe":  nn.Embedding(block_size, n_embd),
             "drop": nn.Dropout(dropout),
-            "h":    nn.ModuleList([
-                StandardBlock(n_embd, n_head, block_size, dropout)
-                for _ in range(n_layer)
-            ]),
+            "h":    nn.ModuleList([StandardBlock(n_embd, n_head,
+                                   block_size, dropout)
+                                   for _ in range(n_layer)]),
             "ln_f": nn.LayerNorm(n_embd),
         })
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
@@ -295,29 +181,25 @@ class StandardGPT(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, std=0.02)
-                if m.bias is not None:
-                    nn.init.zeros_(m.bias)
+                if m.bias is not None: nn.init.zeros_(m.bias)
             elif isinstance(m, nn.Embedding):
                 nn.init.normal_(m.weight, std=0.02)
 
     def forward(self, idx, targets=None):
         B, T = idx.shape
-        pos  = torch.arange(T, device=idx.device)
-        x    = self.transformer["drop"](
+        x = self.transformer["drop"](
             self.transformer["wte"](idx) +
-            self.transformer["wpe"](pos))
-        for block in self.transformer["h"]:
-            x = block(x)
+            self.transformer["wpe"](torch.arange(T, device=idx.device)))
+        for block in self.transformer["h"]: x = block(x)
         x      = self.transformer["ln_f"](x)
         logits = self.lm_head(x)
         loss   = None
         if targets is not None:
-            loss = F.cross_entropy(
-                logits.view(-1, logits.size(-1)), targets.view(-1))
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)),
+                                   targets.view(-1))
         return logits, loss
 
-    def get_indexed_layers(self):
-        return []
+    def get_indexed_layers(self): return []
 
     @torch.no_grad()
     def estimate_loss(self, train_data, val_data, block_size,
@@ -335,74 +217,145 @@ class StandardGPT(nn.Module):
         return losses
 
 
+# ── Indexed GPT ───────────────────────────────────────────────────────────────
+
+class IndexedAttention(nn.Module):
+    """
+    Multi-head attention using IndexedLinear.
+    Q, K, V are separate projections — each outputs d_idx (power-of-2).
+    No combined c_attn since 3*d_idx is not power-of-2.
+    Full Triton used throughout — no ._eager calls.
+    """
+    def __init__(self, d_idx, n_head, block_size, K, dropout=0.1):
+        super().__init__()
+        assert d_idx % n_head == 0
+        self.n_head = n_head
+        self.d_idx  = d_idx
+        # Separate Q/K/V projections — all output d_idx (power-of-2) ✓
+        self.q_proj     = IndexedLinear(d_idx, d_idx, K)
+        self.k_proj     = IndexedLinear(d_idx, d_idx, K)
+        self.v_proj     = IndexedLinear(d_idx, d_idx, K)
+        self.c_proj     = IndexedLinear(d_idx, d_idx, K)
+        self.attn_drop  = nn.Dropout(dropout)
+        self.resid_drop = nn.Dropout(dropout)
+        self.register_buffer("bias", torch.tril(
+            torch.ones(block_size, block_size)).view(1,1,block_size,block_size))
+
+    def forward(self, x):
+        B, T, C = x.shape
+        h = x.reshape(B*T, C)
+        # Full Triton — all dims power-of-2
+        q = self.q_proj(h).reshape(B, T, self.d_idx)
+        k = self.k_proj(h).reshape(B, T, self.d_idx)
+        v = self.v_proj(h).reshape(B, T, self.d_idx)
+        k = k.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
+        q = q.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
+        v = v.view(B,T,self.n_head,C//self.n_head).transpose(1,2)
+        att = (q @ k.transpose(-2,-1)) * (1.0/math.sqrt(k.size(-1)))
+        att = att.masked_fill(self.bias[:,:,:T,:T]==0, float('-inf'))
+        att = self.attn_drop(F.softmax(att, dim=-1))
+        y   = (att @ v).transpose(1,2).contiguous().view(B, T, C)
+        h   = self.c_proj(y.reshape(B*T, C)).reshape(B, T, C)
+        return self.resid_drop(h)
+
+class IndexedFFN(nn.Module):
+    """
+    FFN using IndexedLinear at d_idx.
+    GaussianCDF maps post-layernorm activations to uniform[-1,1].
+    up: (d_idx, 4*d_idx) — power-of-2 ✓
+    down: (4*d_idx, d_idx) — power-of-2 ✓
+    """
+    def __init__(self, d_idx, K, dropout=0.1):
+        super().__init__()
+        self.d_idx = d_idx
+        self.cdf   = GaussianCDFNorm(d_idx)
+        self.up    = IndexedLinear(d_idx, 4*d_idx, K)
+        self.down  = IndexedLinear(4*d_idx, d_idx, K)
+        self.act   = nn.GELU()
+        self.drop  = nn.Dropout(dropout)
+
+    def forward(self, x):
+        shape = x.shape
+        h = self.cdf(x.reshape(-1, self.d_idx))
+        h = self.act(self.up(h))
+        h = self.down(h)
+        return self.drop(h.reshape(shape))
+
+class IndexedBlock(nn.Module):
+    def __init__(self, d_idx, n_head, block_size, K, dropout=0.1):
+        super().__init__()
+        self.ln1  = nn.LayerNorm(d_idx)
+        self.ln2  = nn.LayerNorm(d_idx)
+        self.attn = IndexedAttention(d_idx, n_head, block_size, K, dropout)
+        self.ffn  = IndexedFFN(d_idx, K, dropout)
+
+    def forward(self, x):
+        x = x + self.attn(self.ln1(x))
+        x = x + self.ffn(self.ln2(x))
+        return x
+
 class IndexedGPT(nn.Module):
     """
-    GPT where every linear operation uses IndexedLinear at d_idx.
-    d_idx = n_embd / sqrt(K) — equal total params to StandardGPT at n_embd.
-    No proj_in/proj_out — entire model operates at d_idx.
+    Full indexed GPT — every linear op uses IndexedLinear at d_idx.
+    d_idx = n_embd/sqrt(K) power-of-2 — equal params to StandardGPT.
     """
-    def __init__(self, vocab_size, block_size, n_layer,
-                 n_head, n_embd, K, dropout=0.1):
+    def __init__(self, vocab_size, block_size, n_layer, n_head,
+                 n_embd, K, dropout=0.1):
         super().__init__()
         self.block_size = block_size
         self.ffn_type   = "indexed"
         self.K          = K
-        d_idx           = get_indexed_embd(n_embd, K, n_head)
+        d_idx           = get_d_idx(n_embd, K, n_head)
         self.d_idx      = d_idx
 
         self.transformer = nn.ModuleDict({
             "wte":  nn.Embedding(vocab_size, d_idx),
             "wpe":  nn.Embedding(block_size, d_idx),
             "drop": nn.Dropout(dropout),
-            "h":    nn.ModuleList([
-                IndexedBlock(d_idx, n_head, block_size, K, dropout)
-                for _ in range(n_layer)
-            ]),
+            "h":    nn.ModuleList([IndexedBlock(d_idx, n_head,
+                                   block_size, K, dropout)
+                                   for _ in range(n_layer)]),
             "ln_f": nn.LayerNorm(d_idx),
         })
         self.lm_head = nn.Linear(d_idx, vocab_size, bias=False)
         self._init_weights()
-        # Re-initialize indexed tables with smaller std to prevent explosion
+        # Smaller table init — prevents gradient explosion at startup
         for m in self.modules():
             if isinstance(m, IndexedLinear):
-                nn.init.normal_(m.table, mean=0.0, std=0.01)
+                nn.init.normal_(m.table, std=0.01)
                 nn.init.zeros_(m.bias)
         n = sum(p.numel() for p in self.parameters())
-        print(f"  IndexedGPT: n_embd={n_embd}→d_idx={d_idx}, K={K} | "
-              f"{n/1e6:.2f}M params")
+        print(f"  IndexedGPT: n_embd={n_embd}→d_idx={d_idx} K={K} | "
+              f"{n/1e6:.2f}M params | Triton={TRITON_OK}")
 
     def _init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, std=0.02)
-                if m.bias is not None:
-                    nn.init.zeros_(m.bias)
+                if m.bias is not None: nn.init.zeros_(m.bias)
             elif isinstance(m, nn.Embedding):
                 nn.init.normal_(m.weight, std=0.02)
 
     def forward(self, idx, targets=None):
         B, T = idx.shape
-        pos  = torch.arange(T, device=idx.device)
-        x    = self.transformer["drop"](
+        x = self.transformer["drop"](
             self.transformer["wte"](idx) +
-            self.transformer["wpe"](pos))
-        for block in self.transformer["h"]:
-            x = block(x)
+            self.transformer["wpe"](torch.arange(T, device=idx.device)))
+        for block in self.transformer["h"]: x = block(x)
         x      = self.transformer["ln_f"](x)
         logits = self.lm_head(x)
         loss   = None
         if targets is not None:
-            loss = F.cross_entropy(
-                logits.view(-1, logits.size(-1)), targets.view(-1))
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)),
+                                   targets.view(-1))
         return logits, loss
 
     def get_indexed_layers(self):
         layers = []
         for blk in self.transformer["h"]:
-            layers.append(blk.ffn.up)
-            layers.append(blk.ffn.down)
-            layers.append(blk.attn.c_attn)
-            layers.append(blk.attn.c_proj)
+            layers += [blk.attn.q_proj, blk.attn.k_proj,
+                       blk.attn.v_proj, blk.attn.c_proj,
+                       blk.ffn.up, blk.ffn.down]
         return layers
 
     @torch.no_grad()
@@ -434,7 +387,7 @@ def train(model, train_data, val_data, args, device, label):
             tracker.register(layer)
 
     curve, step_times = [], []
-    best_val_loss = float("inf")
+    best_val_loss     = float("inf")
 
     print(f"\n{'='*65}")
     print(f"Training: {label}")
@@ -442,22 +395,18 @@ def train(model, train_data, val_data, args, device, label):
 
     for step in range(args.max_iters + 1):
         if step % args.eval_interval == 0:
-            losses = model.estimate_loss(
-                train_data, val_data, args.block_size,
-                args.batch_size, args.eval_iters)
+            losses  = model.estimate_loss(train_data, val_data,
+                                          args.block_size, args.batch_size,
+                                          args.eval_iters)
             ppl     = math.exp(min(losses["val"], 20))
             ent_str = ""
-            if tracker is not None:
-                ent     = tracker.entropy()
-                ent_str = f" | bucket_ent={ent:.1f}%"
+            if tracker:
+                ent_str = f" | bucket_ent={tracker.entropy():.1f}%"
                 tracker.reset()
             print(f"  step {step:5d} | train {losses['train']:.4f} "
                   f"| val {losses['val']:.4f} | ppl {ppl:.2f}{ent_str}")
-            curve.append({
-                "step": step, "train_loss": losses["train"],
-                "val_loss": losses["val"], "val_ppl": ppl,
-                "bucket_ent": tracker.entropy() if tracker else None,
-            })
+            curve.append({"step": step, "train_loss": losses["train"],
+                          "val_loss": losses["val"], "val_ppl": ppl})
             if losses["val"] < best_val_loss:
                 best_val_loss = losses["val"]
 
@@ -465,45 +414,34 @@ def train(model, train_data, val_data, args, device, label):
             break
 
         t0 = time.perf_counter()
-        x, y = get_batch(train_data, args.block_size, args.batch_size)
+        x, y  = get_batch(train_data, args.block_size, args.batch_size)
         _, loss = model(x, y)
         if torch.isnan(loss) or torch.isinf(loss):
-            print(f"    [skip] NaN/Inf loss at step {len(step_times)+1}")
+            print(f"    [skip NaN step {step}]")
             step_times.append(0.0)
             continue
         optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         if device.type == "cuda":
             torch.cuda.synchronize()
         elapsed = (time.perf_counter() - t0) * 1000
         step_times.append(elapsed)
-        if len(step_times) <= 5 or len(step_times) % 50 == 0:
-            print(f"    [debug] step {len(step_times)} time: {elapsed:.1f}ms loss: {loss.item():.4f}")
-        if torch.isnan(loss):
-            print(f"    [NaN detected at step {len(step_times)}]")
-            # Check which layer is producing NaN
-            for name, param in model.named_parameters():
-                if torch.isnan(param).any():
-                    print(f"      NaN in param: {name} shape={param.shape}")
-                if param.grad is not None and torch.isnan(param.grad).any():
-                    print(f"      NaN in grad:  {name}")
-            break
+        if len(step_times) <= 3 or len(step_times) % 100 == 0:
+            print(f"    [step {len(step_times):4d}] {elapsed:.1f}ms "
+                  f"loss={loss.item():.4f}")
 
-    if tracker:
-        tracker.remove()
+    if tracker: tracker.remove()
 
-    avg_ms = sum(step_times) / len(step_times) if step_times else 0
-    print(f"\n  Best val loss : {best_val_loss:.4f}  "
-          f"(ppl: {math.exp(min(best_val_loss, 20)):.2f})")
+    avg_ms = sum(t for t in step_times if t > 0) / max(1, sum(1 for t in step_times if t > 0))
+    print(f"\n  Best val loss : {best_val_loss:.4f} "
+          f"(ppl: {math.exp(min(best_val_loss,20)):.2f})")
     print(f"  Avg step time : {avg_ms:.2f}ms")
-    return {
-        "label": label, "curve": curve,
-        "best_val_loss": best_val_loss,
-        "best_val_ppl":  math.exp(min(best_val_loss, 20)),
-        "avg_step_ms":   avg_ms,
-    }
+    return {"label": label, "curve": curve,
+            "best_val_loss": best_val_loss,
+            "best_val_ppl":  math.exp(min(best_val_loss, 20)),
+            "avg_step_ms":   avg_ms}
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -512,7 +450,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_type",    default="both",
                         choices=["standard", "indexed", "both"])
-    parser.add_argument("--K",             type=int,   default=32)
+    parser.add_argument("--K",             type=int,   default=16)
     parser.add_argument("--n_layer",       type=int,   default=4)
     parser.add_argument("--n_head",        type=int,   default=4)
     parser.add_argument("--n_embd",        type=int,   default=256)
@@ -521,7 +459,7 @@ def main():
     parser.add_argument("--max_iters",     type=int,   default=3000)
     parser.add_argument("--eval_interval", type=int,   default=300)
     parser.add_argument("--eval_iters",    type=int,   default=100)
-    parser.add_argument("--lr",            type=float, default=1e-4)
+    parser.add_argument("--lr",            type=float, default=3e-4)
     parser.add_argument("--weight_decay",  type=float, default=1e-2)
     parser.add_argument("--dropout",       type=float, default=0.1)
     parser.add_argument("--device",
@@ -535,16 +473,15 @@ def main():
     print(f"Device: {device}")
     if device.type == "cuda":
         print(f"GPU   : {torch.cuda.get_device_name(0)}")
+    print(f"Triton: {'available' if TRITON_OK else 'not available'}")
 
-    d_idx = get_indexed_embd(args.n_embd, args.K, args.n_head)
-    print(f"\nEqual-parameter comparison:")
-    print(f"  Standard: n_embd={args.n_embd}, standard nn.Linear")
-    print(f"  Indexed:  d_idx={d_idx}, K={args.K} IndexedLinear")
-    print(f"  Both models ≈ equal total parameters")
+    d_idx = get_d_idx(args.n_embd, args.K, args.n_head)
+    print(f"\nK={args.K}: n_embd={args.n_embd} → d_idx={d_idx}")
+    print(f"Standard params ≈ Indexed params (equal budget, K weight regimes)")
 
     text = get_shakespeare()
     train_data, val_data, vocab_size = build_dataset(text, device)
-    print(f"\nDataset: {len(text):,} chars | vocab={vocab_size} | "
+    print(f"Dataset: {len(text):,} chars | vocab={vocab_size} | "
           f"train={len(train_data):,} | val={len(val_data):,}")
 
     out_dir = Path(args.out_dir)
@@ -552,32 +489,23 @@ def main():
     results = []
 
     if args.model_type in ("standard", "both"):
-        print(f"\nBuilding Standard GPT (n_embd={args.n_embd})...")
-        model_std = StandardGPT(
-            vocab_size=vocab_size, block_size=args.block_size,
-            n_layer=args.n_layer, n_head=args.n_head,
-            n_embd=args.n_embd, dropout=args.dropout,
-        ).to(device)
+        print(f"\nBuilding Standard GPT...")
+        model_std = StandardGPT(vocab_size, args.block_size, args.n_layer,
+                                args.n_head, args.n_embd, args.dropout).to(device)
         results.append(train(model_std, train_data, val_data, args, device,
                              f"Standard GPT (n_embd={args.n_embd})"))
         del model_std
-        if device.type == "cuda":
-            torch.cuda.empty_cache()
+        if device.type == "cuda": torch.cuda.empty_cache()
 
     if args.model_type in ("indexed", "both") and AIWN_AVAILABLE:
-        print(f"Triton available: {TRITON_OK}")
-        print(f"Running indexed model only for debugging...")
-        print(f"\nBuilding Indexed GPT (d_idx={d_idx}, K={args.K})...")
-        model_idx = IndexedGPT(
-            vocab_size=vocab_size, block_size=args.block_size,
-            n_layer=args.n_layer, n_head=args.n_head,
-            n_embd=args.n_embd, K=args.K, dropout=args.dropout,
-        ).to(device)
+        print(f"\nBuilding Indexed GPT (K={args.K}, d_idx={d_idx})...")
+        model_idx = IndexedGPT(vocab_size, args.block_size, args.n_layer,
+                               args.n_head, args.n_embd, args.K,
+                               args.dropout).to(device)
         results.append(train(model_idx, train_data, val_data, args, device,
-                             f"Indexed GPT (d_idx={d_idx}, K={args.K})"))
+                             f"Indexed GPT (K={args.K}, d_idx={d_idx})"))
         del model_idx
-        if device.type == "cuda":
-            torch.cuda.empty_cache()
+        if device.type == "cuda": torch.cuda.empty_cache()
 
     if len(results) == 2:
         std_r, idx_r = results
@@ -602,19 +530,16 @@ def main():
               f"{idx_r['avg_step_ms']:>12.2f} "
               f"{step_speedup:>7.2f}x")
         print(f"\n  ppl_ratio:    {ppl_ratio:.4f} "
-              f"({'indexed better ✓' if ppl_ratio < 1 else 'standard better'})")
+              f"({'indexed better ✓' if ppl_ratio<1 else 'standard better'})")
         print(f"  step_speedup: {step_speedup:.2f}x "
-              f"({'indexed faster ✓' if step_speedup > 1 else 'standard faster'})")
+              f"({'indexed faster ✓' if step_speedup>1 else 'standard faster'})")
 
-        summary = {
-            "args": vars(args),
-            "standard": {k: v for k, v in std_r.items() if k != "curve"},
-            "indexed":  {k: v for k, v in idx_r.items() if k != "curve"},
-            "ppl_ratio": ppl_ratio, "step_speedup": step_speedup,
-        }
+        summary = {"args": vars(args),
+                   "standard": {k:v for k,v in std_r.items() if k!="curve"},
+                   "indexed":  {k:v for k,v in idx_r.items() if k!="curve"},
+                   "ppl_ratio": ppl_ratio, "step_speedup": step_speedup}
         out_path = out_dir / f"results_K{args.K}_d{args.n_embd}.json"
-        with open(out_path, "w") as f:
-            json.dump(summary, f, indent=2)
+        with open(out_path, "w") as f: json.dump(summary, f, indent=2)
         print(f"\n  Saved to {out_path}")
 
     elif len(results) == 1:
