@@ -1,0 +1,34 @@
+{
+  "args": {
+    "model_type": "both",
+    "K": 16,
+    "n_layer": 4,
+    "n_head": 4,
+    "n_embd": 256,
+    "block_size": 256,
+    "batch_size": 16,
+    "max_iters": 3000,
+    "eval_interval": 300,
+    "eval_iters": 100,
+    "lr": 0.0003,
+    "weight_decay": 0.01,
+    "dropout": 0.1,
+    "device": "cuda",
+    "seed": 42,
+    "out_dir": "transformer_results"
+  },
+  "standard": {
+    "label": "Standard GPT (n_embd=256)",
+    "best_val_loss": 1.5640469515323638,
+    "best_val_ppl": 4.778118986241678,
+    "avg_step_ms": 28.863982833223417
+  },
+  "indexed": {
+    "label": "Indexed GPT (K=16, d_idx=64)",
+    "best_val_loss": 2.4786130023002624,
+    "best_val_ppl": 11.924713392340097,
+    "avg_step_ms": 86.45429749971179
+  },
+  "ppl_ratio": 2.4956920132538833,
+  "step_speedup": 0.3338640607578778
+}

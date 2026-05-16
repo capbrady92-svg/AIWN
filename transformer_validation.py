@@ -519,11 +519,17 @@ def main():
         if device.type == "cuda": torch.cuda.empty_cache()
 
     if args.model_type in ("indexed", "both") and AIWN_AVAILABLE:
+        from aiwn.layers.indexed_linear import indexed_lr
+        idx_lr = indexed_lr(args.lr, args.K)
         print(f"\nBuilding Indexed GPT (K={args.K}, d_idx={d_idx}, ff_idx={ff_idx})...")
+        print(f"  Indexed lr: {idx_lr:.2e} (base {args.lr:.2e} × sqrt(K/2)={math.sqrt(args.K/2):.2f})")
         model_idx = IndexedGPT(vocab_size, args.block_size, args.n_layer,
                                args.n_head, args.n_embd, args.K,
                                args.dropout).to(device)
-        results.append(train(model_idx, train_data, val_data, args, device,
+        # Temporarily override lr for indexed model
+        args_idx = argparse.Namespace(**vars(args))
+        args_idx.lr = idx_lr
+        results.append(train(model_idx, train_data, val_data, args_idx, device,
                              f"Indexed GPT (K={args.K}, d_idx={d_idx})"))
         del model_idx
         if device.type == "cuda": torch.cuda.empty_cache()

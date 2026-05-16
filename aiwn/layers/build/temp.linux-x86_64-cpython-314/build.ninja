@@ -1,0 +1,37 @@
+ninja_required_version = 1.3
+cxx = g++-13
+nvcc = /usr/local/cuda-12.8/bin/nvcc
+
+cflags = -fno-strict-overflow -Wsign-compare -DNDEBUG -g -O2 -Wall -fPIC -I/home/capbr/triton-venv/lib/python3.14/site-packages/torch/include -I/home/capbr/triton-venv/lib/python3.14/site-packages/torch/include/torch/csrc/api/include -I/usr/local/cuda-12.8/include -I/home/capbr/triton-venv/include -I/usr/include/python3.14 -c
+post_cflags = -O3 -w -DTORCH_API_INCLUDE_EXTENSION_H -DTORCH_EXTENSION_NAME=indexed_linear_cuda -std=c++17
+cuda_cflags = -I/home/capbr/triton-venv/lib/python3.14/site-packages/torch/include -I/home/capbr/triton-venv/lib/python3.14/site-packages/torch/include/torch/csrc/api/include -I/usr/local/cuda-12.8/include -I/home/capbr/triton-venv/include -I/usr/include/python3.14 -c
+cuda_post_cflags = -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options ''"'"'-fPIC'"'"'' -O3 --use_fast_math -lineinfo -Xcudafe=--diag_suppress=2977 -Xcudafe=--diag_suppress=20014 -gencode=arch=compute_120,code=sm_120 -DTORCH_API_INCLUDE_EXTENSION_H -DTORCH_EXTENSION_NAME=indexed_linear_cuda -ccbin gcc-13 -std=c++17
+cuda_dlink_post_cflags = 
+sycl_dlink_post_cflags = 
+ldflags = 
+
+rule compile
+  command = $cxx -MMD -MF $out.d $cflags -c $in -o $out $post_cflags
+  depfile = $out.d
+  deps = gcc
+
+rule cuda_compile
+  depfile = $out.d
+  deps = gcc
+  command = $nvcc -MD -MF $out.d $cuda_cflags -c $in -o $out $cuda_post_cflags
+
+
+
+
+
+
+
+build /mnt/c/Users/capbr/AIWN/aiwn/layers/build/temp.linux-x86_64-cpython-314/indexed_linear_cuda.o: cuda_compile /mnt/c/Users/capbr/AIWN/aiwn/layers/indexed_linear_cuda.cu
+
+
+
+
+
+
+
+
